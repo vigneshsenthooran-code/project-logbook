@@ -1,0 +1,297 @@
+/* Design tokens — translated from DESIGN-airbnb.md
+   White canvas, Rausch (#ff385c) as the single accent, soft rounded shapes,
+   Inter as the Cereal substitute, one shadow tier. */
+
+:root {
+  /* Brand & accent */
+  --color-primary: #ff385c;
+  --color-primary-active: #e00b41;
+  --color-primary-disabled: #ffd1da;
+  --color-primary-tint: #fff0f3;
+  --color-error: #c13515;
+
+  /* Surface */
+  --color-canvas: #ffffff;
+  --color-surface-soft: #f7f7f7;
+  --color-surface-strong: #f2f2f2;
+
+  /* Hairlines & borders */
+  --color-hairline: #dddddd;
+  --color-hairline-soft: #ebebeb;
+  --color-border-strong: #c1c1c1;
+
+  /* Text */
+  --color-ink: #222222;
+  --color-body: #3f3f3f;
+  --color-muted: #6a6a6a;
+  --color-muted-soft: #929292;
+  --color-on-primary: #ffffff;
+  --color-legal-link: #428bff;
+
+  /* Radii */
+  --r-none: 0px;
+  --r-xs: 4px;
+  --r-sm: 8px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 32px;
+  --r-full: 9999px;
+
+  /* Spacing (4px base, 2px micro) */
+  --s-xxs: 2px;
+  --s-xs: 4px;
+  --s-sm: 8px;
+  --s-md: 12px;
+  --s-base: 16px;
+  --s-lg: 24px;
+  --s-xl: 32px;
+  --s-xxl: 48px;
+  --s-section: 64px;
+
+  /* Typography */
+  --font: 'Inter', 'Airbnb Cereal VF', Circular, -apple-system, system-ui, Roboto,
+    'Helvetica Neue', sans-serif;
+
+  /* The single shadow tier */
+  --shadow-1: rgba(0, 0, 0, 0.02) 0 0 0 1px, rgba(0, 0, 0, 0.04) 0 2px 6px 0,
+    rgba(0, 0, 0, 0.1) 0 4px 8px 0;
+
+  --scrim: rgba(0, 0, 0, 0.5);
+
+  /* Category folder swatch palette */
+  --cat-1: #ff385c;
+  --cat-2: #d9730d;
+  --cat-3: #cb912f;
+  --cat-4: #2f8a5b;
+  --cat-5: #2b7da8;
+  --cat-6: #4b5bd6;
+  --cat-7: #7a4dd6;
+  --cat-8: #b03a8e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+/* ---- Typography helpers ---- */
+.t-display-xl {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.t-display-lg {
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.18;
+  letter-spacing: -0.44px;
+}
+.t-display-sm {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.18px;
+}
+.t-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.t-body {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.t-body-sm {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.43;
+}
+.t-caption {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.29;
+}
+.t-caption-sm {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-muted);
+}
+.t-badge {
+  font-size: 11px;
+  font-weight: 600;
+}
+.t-uppercase {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.32px;
+  text-transform: uppercase;
+}
+
+.muted {
+  color: var(--color-muted);
+}
+
+/* ---- Buttons ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-sm);
+  border: none;
+  border-radius: var(--r-sm);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.25;
+  padding: 12px 22px;
+  transition: background 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+.btn-primary:hover {
+  background: var(--color-primary-active);
+}
+.btn-primary:disabled {
+  background: var(--color-primary-disabled);
+  cursor: not-allowed;
+}
+.btn-secondary {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  border: 1px solid var(--color-ink);
+}
+.btn-secondary:hover {
+  background: var(--color-surface-soft);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--color-ink);
+  padding: 8px 12px;
+}
+.btn-ghost:hover {
+  background: var(--color-surface-soft);
+}
+.btn-pill {
+  border-radius: var(--r-full);
+  padding: 10px 20px;
+  font-size: 14px;
+}
+.btn-danger {
+  background: var(--color-canvas);
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+}
+.btn-danger:hover {
+  background: #fff5f2;
+}
+
+/* ---- Inputs ---- */
+.input,
+.textarea {
+  width: 100%;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  font-size: 16px;
+  line-height: 1.4;
+}
+.input:focus,
+.textarea:focus {
+  outline: none;
+  border: 2px solid var(--color-ink);
+  padding: 11px 13px;
+}
+.textarea {
+  resize: vertical;
+  min-height: 96px;
+}
+
+/* ---- Shared surface ---- */
+.card {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-hairline-soft);
+  border-radius: var(--r-md);
+}
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-base);
+  z-index: 50;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--r-full);
+  background: var(--color-surface-strong);
+  color: var(--color-ink);
+}
+.tag-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-full);
+  flex: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
