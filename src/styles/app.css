@@ -10,9 +10,10 @@
   gap: var(--s-sm);
 }
 .boot-mark {
-  font-size: 22px;
-  font-weight: 600;
-  color: var(--color-primary);
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--color-ink);
 }
 
 /* ---- Shell ---- */
@@ -58,8 +59,16 @@
   padding: 0 var(--s-sm) var(--s-lg);
 }
 .sidebar-mark {
-  color: var(--color-primary);
-  font-size: 20px;
+  width: 46px;
+  height: 46px;
+  flex: none;
+}
+.sidebar-brand-name {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--color-ink);
 }
 .sidebar-nav {
   display: flex;
@@ -80,8 +89,8 @@
   background: var(--color-surface-soft);
 }
 .sidebar-link.active {
-  background: var(--color-primary-tint);
-  color: var(--color-primary-active);
+  background: var(--color-primary-pale);
+  color: var(--color-ink-deep);
 }
 .sidebar-section {
   margin-top: var(--s-lg);
@@ -186,7 +195,7 @@
 }
 .composer-tab.is-active {
   background: var(--color-ink);
-  color: var(--color-on-primary);
+  color: var(--color-on-dark);
 }
 .composer-textarea {
   min-height: 120px;
@@ -362,7 +371,7 @@
 /* ---- Modal ---- */
 .modal {
   background: var(--color-canvas);
-  border-radius: var(--r-lg);
+  border-radius: var(--r-xl);
   width: 100%;
   max-width: 520px;
   max-height: 90vh;
@@ -427,11 +436,11 @@
 .filter-chip.is-active {
   border-color: var(--color-ink);
   background: var(--color-ink);
-  color: var(--color-on-primary);
+  color: var(--color-on-dark);
 }
 .confirm-chip.is-active .tag-dot,
 .filter-chip.is-active .tag-dot {
-  outline: 1px solid var(--color-on-primary);
+  outline: 1px solid var(--color-on-dark);
 }
 
 /* ---- Filter bar ---- */
@@ -521,11 +530,11 @@
 }
 .cal-cell.is-today {
   font-weight: 700;
-  color: var(--color-primary);
+  color: var(--color-positive-deep);
 }
 .cal-cell.is-selected {
   background: var(--color-ink);
-  color: var(--color-on-primary);
+  color: var(--color-on-dark);
 }
 .cal-dot {
   position: absolute;
@@ -533,10 +542,10 @@
   width: 4px;
   height: 4px;
   border-radius: var(--r-full);
-  background: var(--color-primary);
+  background: var(--color-positive);
 }
 .cal-cell.is-selected .cal-dot {
-  background: var(--color-on-primary);
+  background: var(--color-on-dark);
 }
 .cal-events {
   margin-top: var(--s-md);
@@ -647,9 +656,9 @@
 }
 .preset-badge {
   font-size: 11px;
-  font-weight: 600;
-  color: var(--color-primary);
-  background: var(--color-primary-tint);
+  font-weight: 700;
+  color: var(--color-positive-deep);
+  background: var(--color-primary-pale);
   padding: 2px 8px;
   border-radius: var(--r-full);
 }

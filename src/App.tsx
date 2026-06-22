@@ -17,7 +17,7 @@ export default function App() {
   if (!ready) {
     return (
       <div className="boot">
-        <div className="boot-mark">Project Logbook</div>
+        <div className="boot-mark">Quire</div>
         <div className="muted t-body-sm">Opening your logbook…</div>
       </div>
     );

@@ -1,43 +1,55 @@
-/* Design tokens — translated from DESIGN-airbnb.md
-   White canvas, Rausch (#ff385c) as the single accent, soft rounded shapes,
-   Inter as the Cereal substitute, one shadow tier. */
+/* Design tokens — translated from DESIGN-wise.md
+   Lime-green CTA accent, sage-tinted canvas, near-black ink, heavy display
+   sans for headings, 24px "pill-rectangle" radius on cards + buttons. */
 
 :root {
   /* Brand & accent */
-  --color-primary: #ff385c;
-  --color-primary-active: #e00b41;
-  --color-primary-disabled: #ffd1da;
-  --color-primary-tint: #fff0f3;
-  --color-error: #c13515;
+  --color-primary: #9fe870;
+  --color-primary-active: #cdffad;
+  --color-primary-neutral: #c5edab;
+  --color-primary-pale: #e2f6d5;
+  --color-primary-disabled: #e2f6d5;
+  --color-error: #d03238;
 
   /* Surface */
   --color-canvas: #ffffff;
-  --color-surface-soft: #f7f7f7;
-  --color-surface-strong: #f2f2f2;
+  --color-surface-soft: #e8ebe6;
+  --color-surface-strong: #dde3d8;
 
   /* Hairlines & borders */
-  --color-hairline: #dddddd;
-  --color-hairline-soft: #ebebeb;
-  --color-border-strong: #c1c1c1;
+  --color-hairline: rgba(14, 15, 12, 0.14);
+  --color-hairline-soft: rgba(14, 15, 12, 0.08);
+  --color-border-strong: #0e0f0c;
 
   /* Text */
-  --color-ink: #222222;
-  --color-body: #3f3f3f;
-  --color-muted: #6a6a6a;
-  --color-muted-soft: #929292;
-  --color-on-primary: #ffffff;
-  --color-legal-link: #428bff;
+  --color-ink: #0e0f0c;
+  --color-ink-deep: #163300;
+  --color-body: #454745;
+  --color-muted: #5d5e5b;
+  --color-muted-soft: #868685;
+  --color-on-primary: #0e0f0c;
+  --color-on-dark: #ffffff;
+  --color-legal-link: #38c8ff;
 
-  /* Radii */
+  /* Semantic */
+  --color-positive: #2ead4b;
+  --color-positive-deep: #054d28;
+  --color-warning: #ffd11a;
+  --color-warning-deep: #b86700;
+  --color-negative: #d03238;
+  --color-negative-deep: #a72027;
+  --color-negative-bg: #320707;
+
+  /* Radii — 24px is the brand's canonical card + button radius */
   --r-none: 0px;
   --r-xs: 4px;
   --r-sm: 8px;
-  --r-md: 14px;
-  --r-lg: 20px;
-  --r-xl: 32px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 24px;
   --r-full: 9999px;
 
-  /* Spacing (4px base, 2px micro) */
+  /* Spacing (4px base) */
   --s-xxs: 2px;
   --s-xs: 4px;
   --s-sm: 8px;
@@ -49,24 +61,23 @@
   --s-section: 64px;
 
   /* Typography */
-  --font: 'Inter', 'Airbnb Cereal VF', Circular, -apple-system, system-ui, Roboto,
-    'Helvetica Neue', sans-serif;
+  --font: 'Inter', system-ui, -apple-system, Roboto, 'Helvetica Neue', sans-serif;
+  --font-display: 'Manrope', 'Inter', system-ui, sans-serif;
 
-  /* The single shadow tier */
-  --shadow-1: rgba(0, 0, 0, 0.02) 0 0 0 1px, rgba(0, 0, 0, 0.04) 0 2px 6px 0,
-    rgba(0, 0, 0, 0.1) 0 4px 8px 0;
+  /* The brand leans on surface contrast (sage canvas vs white card), not shadow */
+  --shadow-1: 0 0 0 1px rgba(14, 15, 12, 0.06), 0 2px 8px rgba(14, 15, 12, 0.05);
 
-  --scrim: rgba(0, 0, 0, 0.5);
+  --scrim: rgba(14, 15, 12, 0.5);
 
   /* Category folder swatch palette */
-  --cat-1: #ff385c;
+  --cat-1: #2ead4b;
   --cat-2: #d9730d;
-  --cat-3: #cb912f;
-  --cat-4: #2f8a5b;
-  --cat-5: #2b7da8;
+  --cat-3: #b86700;
+  --cat-4: #163300;
+  --cat-5: #38c8ff;
   --cat-6: #4b5bd6;
   --cat-7: #7a4dd6;
-  --cat-8: #b03a8e;
+  --cat-8: #d03238;
 }
 
 * {
@@ -85,7 +96,7 @@ body {
   font-size: 16px;
   line-height: 1.5;
   color: var(--color-ink);
-  background: var(--color-canvas);
+  background: var(--color-surface-soft);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -115,21 +126,25 @@ a {
 
 /* ---- Typography helpers ---- */
 .t-display-xl {
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1.4;
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.18;
+  letter-spacing: -0.5px;
 }
 .t-display-lg {
-  font-size: 22px;
-  font-weight: 500;
-  line-height: 1.18;
-  letter-spacing: -0.44px;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.3px;
 }
 .t-display-sm {
+  font-family: var(--font-display);
   font-size: 20px;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -0.18px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.2px;
 }
 .t-title {
   font-size: 16px;
@@ -148,7 +163,7 @@ a {
 }
 .t-caption {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.29;
 }
 .t-caption-sm {
@@ -158,7 +173,7 @@ a {
 }
 .t-badge {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
 }
 .t-uppercase {
   font-size: 8px;
@@ -178,11 +193,11 @@ a {
   justify-content: center;
   gap: var(--s-sm);
   border: none;
-  border-radius: var(--r-sm);
+  border-radius: var(--r-xl);
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.25;
-  padding: 12px 22px;
+  padding: 12px 24px;
   transition: background 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
 }
 .btn-primary {
@@ -194,15 +209,16 @@ a {
 }
 .btn-primary:disabled {
   background: var(--color-primary-disabled);
+  color: var(--color-muted);
   cursor: not-allowed;
 }
 .btn-secondary {
-  background: var(--color-canvas);
+  background: var(--color-surface-soft);
   color: var(--color-ink);
-  border: 1px solid var(--color-ink);
+  border: 1px solid transparent;
 }
 .btn-secondary:hover {
-  background: var(--color-surface-soft);
+  background: var(--color-surface-strong);
 }
 .btn-ghost {
   background: transparent;
@@ -219,11 +235,11 @@ a {
 }
 .btn-danger {
   background: var(--color-canvas);
-  color: var(--color-error);
-  border: 1px solid var(--color-error);
+  color: var(--color-negative);
+  border: 1px solid var(--color-negative);
 }
 .btn-danger:hover {
-  background: #fff5f2;
+  background: #fdf0ef;
 }
 
 /* ---- Inputs ---- */
@@ -233,7 +249,7 @@ a {
   background: var(--color-canvas);
   color: var(--color-ink);
   border: 1px solid var(--color-hairline);
-  border-radius: var(--r-sm);
+  border-radius: var(--r-md);
   padding: 12px 14px;
   font-size: 16px;
   line-height: 1.4;
@@ -252,8 +268,8 @@ a {
 /* ---- Shared surface ---- */
 .card {
   background: var(--color-canvas);
-  border: 1px solid var(--color-hairline-soft);
-  border-radius: var(--r-md);
+  border: none;
+  border-radius: var(--r-xl);
 }
 .scrim {
   position: fixed;

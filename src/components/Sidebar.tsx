@@ -35,15 +35,20 @@ export default function Sidebar() {
       await importBundle(bundle);
       navigate('/');
     } catch {
-      alert('That file does not look like a Project Logbook export.');
+      alert('That file does not look like a Quire export.');
     }
   }
 
   return (
     <nav className="sidebar">
       <div className="sidebar-brand">
-        <span className="sidebar-mark">▦</span>
-        <span className="t-title">Project Logbook</span>
+        <svg className="sidebar-mark" viewBox="0 0 36 36" fill="none" aria-hidden>
+          <rect x="6" y="6" width="24" height="24" rx="6" fill="var(--color-primary)" />
+          <rect x="11" y="12" width="14" height="2.6" rx="1.3" fill="var(--color-ink)" />
+          <rect x="11" y="16.7" width="14" height="2.6" rx="1.3" fill="var(--color-ink)" />
+          <rect x="11" y="21.4" width="9" height="2.6" rx="1.3" fill="var(--color-ink)" />
+        </svg>
+        <span className="sidebar-brand-name">Quire</span>
       </div>
 
       <div className="sidebar-nav">
