@@ -12,6 +12,7 @@ export default function Browse() {
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sort, setSort] = useState<SortMode>('newest');
+  const query = params.get('q') ?? '';
 
   // Honour ?cat=… deep links from the sidebar.
   useEffect(() => {
@@ -34,7 +35,7 @@ export default function Browse() {
     if (params.get('cat')) setParams({}, { replace: true });
   }
 
-  const shown = filterAndSort(entries, categories, selected, sort);
+  const shown = filterAndSort(entries, categories, selected, sort, query);
 
   return (
     <div className="browse">
@@ -42,7 +43,8 @@ export default function Browse() {
         <h1 className="t-display-xl">Browse</h1>
         <p className="muted">
           {shown.length} {shown.length === 1 ? 'entry' : 'entries'}
-          {selected.size > 0 ? ' in selected categories' : ''}.
+          {selected.size > 0 ? ' in selected categories' : ''}
+          {query ? ` matching “${query}”` : ''}.
         </p>
       </header>
 

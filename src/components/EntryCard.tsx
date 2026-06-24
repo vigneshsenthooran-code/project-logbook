@@ -14,11 +14,11 @@ function formatDate(iso: string): string {
 export default function EntryCard({
   entry,
   categories,
-  onEdit,
+  onView,
 }: {
   entry: Entry;
   categories: Category[];
-  onEdit: (e: Entry) => void;
+  onView: (e: Entry) => void;
 }) {
   const getAttachment = useStore((s) => s.getAttachment);
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
@@ -44,7 +44,7 @@ export default function EntryCard({
   }, [entry, getAttachment]);
 
   return (
-    <article className="entry-card card" onClick={() => onEdit(entry)}>
+    <article className="entry-card card" onClick={() => onView(entry)}>
       {entry.type === 'image' && (
         <div className="entry-media">
           {thumbUrl ? <img src={thumbUrl} alt={entry.body || 'image'} /> : <div className="entry-media-ph" />}

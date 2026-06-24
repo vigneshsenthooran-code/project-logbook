@@ -139,31 +139,30 @@ export default function EntryEditModal({
           )}
         </div>
 
-        <div className="modal-foot modal-foot-split">
-          {confirmDelete ? (
-            <div className="confirm-delete">
-              <span className="t-body-sm">Delete this entry?</span>
-              <button className="btn btn-ghost" onClick={() => setConfirmDelete(false)}>
-                Cancel
-              </button>
-              <button className="btn btn-danger" onClick={doDelete}>
-                Delete
-              </button>
-            </div>
-          ) : (
-            <button className="btn btn-danger" onClick={() => setConfirmDelete(true)}>
-              Delete
-            </button>
-          )}
-          <div className="modal-foot-right">
-            <button className="btn btn-secondary" onClick={onClose}>
+        {confirmDelete ? (
+          <div className="modal-foot confirm-delete">
+            <button className="btn btn-text" onClick={() => setConfirmDelete(false)}>
               Cancel
             </button>
-            <button className="btn btn-primary" onClick={save}>
-              Save changes
+            <button className="btn btn-danger-ghost btn-sm" onClick={doDelete}>
+              🗑 Delete
             </button>
           </div>
-        </div>
+        ) : (
+          <div className="modal-foot modal-foot-split">
+            <button className="btn btn-danger-ghost btn-sm" onClick={() => setConfirmDelete(true)}>
+              🗑 Delete
+            </button>
+            <div className="modal-foot-right">
+              <button className="btn btn-text" onClick={onClose}>
+                Cancel
+              </button>
+              <button className="btn btn-primary btn-sm" onClick={save}>
+                Save changes
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

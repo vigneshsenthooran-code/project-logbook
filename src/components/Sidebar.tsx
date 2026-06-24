@@ -1,55 +1,26 @@
-import { useRef } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { useStore } from '../store';
 import { entryCounts, topCategories } from '../lib/categories';
-import type { LogbookBundle } from '../storage/StorageAdapter';
 
 export default function Sidebar() {
   const config = useStore((s) => s.config);
   const entries = useStore((s) => s.entries);
-  const exportBundle = useStore((s) => s.exportBundle);
-  const importBundle = useStore((s) => s.importBundle);
-  const navigate = useNavigate();
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const counts = entryCounts(entries);
   const cats = topCategories(config.categories);
 
-  async function handleExport() {
-    const bundle = await exportBundle();
-    const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `logbook-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  async function handleImportFile(file: File) {
-    const text = await file.text();
-    try {
-      const bundle = JSON.parse(text) as LogbookBundle;
-      if (!bundle.config || !Array.isArray(bundle.entries)) throw new Error('bad');
-      if (!confirm('Importing will replace your current logbook. Continue?')) return;
-      await importBundle(bundle);
-      navigate('/');
-    } catch {
-      alert('That file does not look like a Quire export.');
-    }
-  }
-
   return (
     <nav className="sidebar">
-      <div className="sidebar-brand">
+      <Link to="/" className="sidebar-brand">
         <svg className="sidebar-mark" viewBox="0 0 36 36" fill="none" aria-hidden>
-          <rect x="6" y="6" width="24" height="24" rx="6" fill="var(--color-primary)" />
-          <rect x="11" y="12" width="14" height="2.6" rx="1.3" fill="var(--color-ink)" />
-          <rect x="11" y="16.7" width="14" height="2.6" rx="1.3" fill="var(--color-ink)" />
-          <rect x="11" y="21.4" width="9" height="2.6" rx="1.3" fill="var(--color-ink)" />
+          <rect x="10" y="10" width="21" height="22" rx="6" fill="#ffffff" stroke="#5ea33d" strokeWidth="2" />
+          <rect x="5" y="5" width="24" height="24" rx="6" fill="var(--color-primary)" stroke="#4f8f33" strokeWidth="2.2" />
+          <rect x="10.5" y="12.6" width="13" height="2.6" rx="1.3" fill="#4f8f33" />
+          <rect x="10.5" y="17.3" width="13" height="2.6" rx="1.3" fill="#4f8f33" />
+          <rect x="10.5" y="22" width="8" height="2.6" rx="1.3" fill="#4f8f33" />
         </svg>
         <span className="sidebar-brand-name">Quire</span>
-      </div>
+      </Link>
 
       <div className="sidebar-nav">
         <NavLink to="/" end className="sidebar-link">
@@ -78,26 +49,6 @@ export default function Sidebar() {
             </NavLink>
           ))}
         </div>
-      </div>
-
-      <div className="sidebar-footer">
-        <button className="btn btn-ghost t-body-sm" onClick={handleExport}>
-          ⬇ Export
-        </button>
-        <button className="btn btn-ghost t-body-sm" onClick={() => fileRef.current?.click()}>
-          ⬆ Import
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="application/json"
-          hidden
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void handleImportFile(f);
-            e.target.value = '';
-          }}
-        />
       </div>
     </nav>
   );

@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import Sidebar from './Sidebar';
+import Topbar from './Topbar';
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -20,7 +21,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <Sidebar />
       </div>
       {mobileOpen && <div className="shell-overlay" onClick={() => setMobileOpen(false)} />}
-      <main className="shell-main">{children}</main>
+      <div className="shell-col">
+        <Topbar />
+        <main className="shell-main">{children}</main>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type ClipboardEvent, type DragEvent } from 'react';
 import { useStore } from '../store';
 import type { EntryType, LinkMeta } from '../types';
 import { fetchLinkMeta } from '../lib/linkMeta';
@@ -12,6 +12,8 @@ const TABS: { type: EntryType; label: string; icon: string }[] = [
   { type: 'file', label: 'File', icon: '📎' },
   { type: 'link', label: 'Link', icon: '🔗' },
 ];
+
+const URL_RE = /^https?:\/\/\S+$/i;
 
 export default function EntryComposer() {
   const config = useStore((s) => s.config);
@@ -27,6 +29,7 @@ export default function EntryComposer() {
   const fileInput = useRef<HTMLInputElement>(null);
 
   function reset() {
+    setType('text');
     setBody('');
     setFiles([]);
     setLinkUrl('');
@@ -39,23 +42,55 @@ export default function EntryComposer() {
     setLinkMeta(null);
   }
 
-  function onFilesChosen(list: FileList | null) {
-    if (!list) return;
-    const next: Pending[] = Array.from(list).map((f) => ({
-      name: f.name,
+  function attachFiles(list: FileList | File[]) {
+    const arr = Array.from(list);
+    if (arr.length === 0) return;
+    const isImage = arr[0].type.startsWith('image/');
+    const next: Pending[] = (isImage ? arr : arr.slice(0, 1)).map((f, i) => ({
+      name: f.name || (isImage ? `pasted-image-${i}.png` : 'pasted-file'),
       mime: f.type || 'application/octet-stream',
       blob: f,
-      previewUrl: f.type.startsWith('image/') ? URL.createObjectURL(f) : undefined,
+      previewUrl: isImage ? URL.createObjectURL(f) : undefined,
     }));
-    setFiles(type === 'image' ? next : next.slice(0, 1));
+    setType(isImage ? 'image' : 'file');
+    setFiles(next);
   }
 
-  async function loadLink() {
-    if (!linkUrl.trim()) return;
+  function removeFile(i: number) {
+    setFiles((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  async function loadLink(url: string) {
+    if (!url.trim()) return;
     setLinkLoading(true);
-    const meta = await fetchLinkMeta(linkUrl);
+    const meta = await fetchLinkMeta(url);
     setLinkMeta(meta);
     setLinkLoading(false);
+  }
+
+  function handleDrop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    if (e.dataTransfer.files.length > 0) attachFiles(e.dataTransfer.files);
+  }
+
+  function handlePaste(e: ClipboardEvent<HTMLDivElement>) {
+    const clip = e.clipboardData;
+    const fileItem = Array.from(clip.items).find((it) => it.kind === 'file');
+    if (fileItem) {
+      const f = fileItem.getAsFile();
+      if (f) {
+        e.preventDefault();
+        attachFiles([f]);
+        return;
+      }
+    }
+    const text = clip.getData('text').trim();
+    if (text && URL_RE.test(text) && body.trim().length === 0) {
+      e.preventDefault();
+      setType('link');
+      setLinkUrl(text);
+      void loadLink(text);
+    }
   }
 
   // Text used for keyword categorisation.
@@ -105,98 +140,84 @@ export default function EntryComposer() {
         ))}
       </div>
 
-      <div className="composer-body">
-        {type === 'text' && (
-          <textarea
-            className="textarea composer-textarea"
-            placeholder="Capture a thought, a piece of feedback, an idea…  (⌘/Ctrl + Enter to file)"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            onKeyDown={(e) => {
-              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canSubmit) setConfirming(true);
-            }}
-            autoFocus
-          />
+      <div className="composer-field" onDrop={handleDrop} onDragOver={(e) => e.preventDefault()} onPaste={handlePaste}>
+        {(type === 'image' || type === 'file') && files.length > 0 && (
+          <div className="composer-attachments">
+            {files.map((f, i) => (
+              <div key={i} className="composer-attachment-chip">
+                {f.previewUrl ? (
+                  <img src={f.previewUrl} alt={f.name} className="dropzone-thumb" />
+                ) : (
+                  <span className="dropzone-file">📄 {f.name}</span>
+                )}
+                <button
+                  className="composer-attachment-remove"
+                  onClick={() => removeFile(i)}
+                  aria-label="Remove attachment"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            {type === 'image' && (
+              <button className="composer-attach-more" onClick={() => fileInput.current?.click()}>
+                + Add more
+              </button>
+            )}
+          </div>
         )}
 
-        {(type === 'image' || type === 'file') && (
-          <div className="composer-attach">
-            <button className="dropzone" onClick={() => fileInput.current?.click()}>
-              {files.length === 0 ? (
-                <span className="muted">
-                  Click to choose {type === 'image' ? 'image(s)' : 'a file'}
-                </span>
-              ) : (
-                <div className="dropzone-files">
-                  {files.map((f, i) =>
-                    f.previewUrl ? (
-                      <img key={i} src={f.previewUrl} alt={f.name} className="dropzone-thumb" />
-                    ) : (
-                      <span key={i} className="dropzone-file">
-                        📄 {f.name}
-                      </span>
-                    )
-                  )}
-                </div>
-              )}
-            </button>
-            <input
-              ref={fileInput}
-              type="file"
-              hidden
-              accept={type === 'image' ? 'image/*' : undefined}
-              multiple={type === 'image'}
-              onChange={(e) => onFilesChosen(e.target.files)}
-            />
-            <textarea
-              className="textarea"
-              placeholder={type === 'image' ? 'Caption (helps categorise)…' : 'Description…'}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-            />
-          </div>
+        {(type === 'image' || type === 'file') && files.length === 0 && (
+          <button className="composer-attach-hint" onClick={() => fileInput.current?.click()}>
+            Drop {type === 'image' ? 'an image' : 'a file'}, paste, or click to browse
+          </button>
         )}
 
         {type === 'link' && (
-          <div className="composer-link">
-            <div className="composer-link-row">
-              <input
-                className="input"
-                placeholder="https://example.com/article"
-                value={linkUrl}
-                onChange={(e) => {
-                  setLinkUrl(e.target.value);
-                  setLinkMeta(null);
-                }}
-                onKeyDown={(e) => e.key === 'Enter' && void loadLink()}
-              />
-              <button className="btn btn-secondary" onClick={loadLink} disabled={linkLoading}>
-                {linkLoading ? 'Fetching…' : 'Preview'}
-              </button>
-            </div>
-            {linkMeta && (
-              <div className="link-preview">
-                {linkMeta.thumbnailUrl && (
-                  <img src={linkMeta.thumbnailUrl} alt="" className="link-preview-thumb" />
-                )}
-                <div>
-                  <div className="t-title">{linkMeta.title ?? linkMeta.domain}</div>
-                  <div className="t-caption-sm">{linkMeta.domain}</div>
-                </div>
-              </div>
-            )}
-            <textarea
-              className="textarea"
-              placeholder="Note (optional)…"
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
+          <div className="composer-link-row">
+            <input
+              className="input"
+              placeholder="https://example.com/article"
+              value={linkUrl}
+              onChange={(e) => {
+                setLinkUrl(e.target.value);
+                setLinkMeta(null);
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && void loadLink(linkUrl)}
             />
+            <button className="btn btn-secondary" onClick={() => loadLink(linkUrl)} disabled={linkLoading}>
+              {linkLoading ? 'Fetching…' : 'Preview'}
+            </button>
           </div>
         )}
+
+        {type === 'link' && linkMeta && (
+          <div className="link-preview">
+            {linkMeta.thumbnailUrl && <img src={linkMeta.thumbnailUrl} alt="" className="link-preview-thumb" />}
+            <div>
+              <div className="t-title">{linkMeta.title ?? linkMeta.domain}</div>
+              <div className="t-caption-sm">{linkMeta.domain}</div>
+            </div>
+          </div>
+        )}
+
+        <textarea
+          className="composer-textarea"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          onKeyDown={(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canSubmit) setConfirming(true);
+          }}
+          autoFocus
+        />
+
+        <input ref={fileInput} type="file" hidden multiple onChange={(e) => e.target.files && attachFiles(e.target.files)} />
       </div>
 
       <div className="composer-foot">
-        <span className="t-caption-sm muted">Filed into your {config.activePreset === 'uts' ? 'UTS design log' : 'logbook'}</span>
+        <span className="t-caption-sm muted">
+          Filed into your {config.activePreset === 'uts' ? 'UTS design log' : 'logbook'}
+        </span>
         <button className="btn btn-primary" disabled={!canSubmit} onClick={() => setConfirming(true)}>
           File entry →
         </button>

@@ -241,6 +241,29 @@ a {
 .btn-danger:hover {
   background: #fdf0ef;
 }
+.btn-danger-ghost {
+  background: transparent;
+  color: var(--color-negative);
+  padding: 8px 14px;
+}
+.btn-danger-ghost:hover {
+  background: #fdf0ef;
+}
+.btn-text {
+  background: transparent;
+  color: var(--color-muted);
+  padding: 8px 10px;
+  font-weight: 500;
+}
+.btn-text:hover {
+  color: var(--color-ink);
+  text-decoration: underline;
+}
+.btn-sm {
+  font-size: 13px;
+  padding: 8px 16px;
+  border-radius: var(--r-lg);
+}
 
 /* ---- Inputs ---- */
 .input,
