@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useStore } from '../store';
 
 export default function TodoList() {
-  const todos = useStore((s) => s.todos);
+  const activeProjectId = useStore((s) => s.activeProjectId);
+  const todos = useStore((s) => s.todos).filter((t) => t.projectId === activeProjectId);
   const addTodo = useStore((s) => s.addTodo);
   const toggleTodo = useStore((s) => s.toggleTodo);
   const deleteTodo = useStore((s) => s.deleteTodo);

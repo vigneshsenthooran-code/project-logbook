@@ -1,10 +1,13 @@
-import type { Attachment, CalendarEvent, Config, Entry, Todo } from '../types';
+import type { Attachment, CalendarEvent, Config, Entry, Project, Todo } from '../types';
 
-/** A portable snapshot of the whole logbook, used for export / import. */
+/** A portable snapshot of the whole app (every project), used for export / import. */
 export interface LogbookBundle {
-  version: 1;
+  version: 2;
   exportedAt: string;
-  config: Config;
+  projects: Project[];
+  /** Each project's category config, keyed by project id. */
+  configs: Record<string, Config>;
+  activeProjectId: string;
   entries: Entry[];
   todos: Todo[];
   events: CalendarEvent[];
@@ -18,8 +21,16 @@ export interface LogbookBundle {
  * without touching app logic.
  */
 export interface StorageAdapter {
-  getConfig(): Promise<Config | undefined>;
-  saveConfig(config: Config): Promise<void>;
+  listProjects(): Promise<Project[]>;
+  saveProject(project: Project): Promise<void>;
+  /** Removes the project and everything filed under it (config, entries, attachments, todos, events). */
+  deleteProject(id: string): Promise<void>;
+
+  getActiveProjectId(): Promise<string | undefined>;
+  setActiveProjectId(id: string): Promise<void>;
+
+  getConfig(projectId: string): Promise<Config | undefined>;
+  saveConfig(projectId: string, config: Config): Promise<void>;
 
   listEntries(): Promise<Entry[]>;
   getEntry(id: string): Promise<Entry | undefined>;

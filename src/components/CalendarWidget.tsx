@@ -5,7 +5,8 @@ import { toDateKey } from '../lib/id';
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 export default function CalendarWidget() {
-  const events = useStore((s) => s.events);
+  const activeProjectId = useStore((s) => s.activeProjectId);
+  const events = useStore((s) => s.events).filter((e) => e.projectId === activeProjectId);
   const addEvent = useStore((s) => s.addEvent);
   const deleteEvent = useStore((s) => s.deleteEvent);
 

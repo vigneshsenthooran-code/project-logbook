@@ -6,7 +6,8 @@ import FilterSortBar, { type SortMode } from '../components/FilterSortBar';
 import { filterAndSort } from '../lib/sortEntries';
 
 export default function Browse() {
-  const entries = useStore((s) => s.entries);
+  const activeProjectId = useStore((s) => s.activeProjectId);
+  const entries = useStore((s) => s.entries).filter((e) => e.projectId === activeProjectId);
   const categories = useStore((s) => s.config.categories);
   const [params, setParams] = useSearchParams();
 

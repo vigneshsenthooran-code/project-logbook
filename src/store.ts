@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Attachment, CalendarEvent, Category, Config, Entry, Todo } from './types';
+import type { Attachment, CalendarEvent, Category, Config, Entry, Project, Todo } from './types';
 import { indexedDbAdapter } from './storage/indexedDbAdapter';
 import type { LogbookBundle } from './storage/StorageAdapter';
 import { categoriesForPreset } from './presets';
@@ -7,29 +7,45 @@ import { nowIso, uid } from './lib/id';
 
 const storage = indexedDbAdapter;
 
+const DEFAULT_PRESET = 'uts';
+
+function blankConfig(presetId: string): Config {
+  return { activePreset: presetId, categories: categoriesForPreset(presetId) };
+}
+
 interface AppState {
   ready: boolean;
+  projects: Project[];
+  activeProjectId: string;
+  /** The active project's category config. Mirrors configsByProject[activeProjectId]. */
   config: Config;
+  configsByProject: Record<string, Config>;
   entries: Entry[];
   todos: Todo[];
   events: CalendarEvent[];
 
   init: () => Promise<void>;
 
+  // projects
+  addProject: (name: string, presetId?: string) => Promise<Project>;
+  renameProject: (id: string, name: string) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
+  switchProject: (id: string) => Promise<void>;
+
   // entries
   addEntry: (
-    entry: Omit<Entry, 'id' | 'createdAt' | 'updatedAt'>,
+    entry: Omit<Entry, 'id' | 'projectId' | 'createdAt' | 'updatedAt'>,
     attachments?: { name: string; mime: string; blob: Blob }[]
   ) => Promise<Entry>;
   updateEntry: (id: string, patch: Partial<Entry>) => Promise<void>;
   deleteEntry: (id: string) => Promise<void>;
   getAttachment: (id: string) => Promise<Attachment | undefined>;
 
-  // categories / config
+  // categories / config (apply to the active project)
   setCategories: (categories: Category[]) => Promise<void>;
   applyPreset: (presetId: string) => Promise<void>;
 
-  // planner
+  // planner (scoped to the active project)
   addTodo: (text: string, dueDate?: string) => Promise<void>;
   toggleTodo: (id: string) => Promise<void>;
   deleteTodo: (id: string) => Promise<void>;
@@ -41,31 +57,117 @@ interface AppState {
   importBundle: (bundle: LogbookBundle) => Promise<void>;
 }
 
-const DEFAULT_PRESET = 'uts';
+// React.StrictMode double-invokes effects in dev, which would otherwise race
+// init() and create two default projects before either save lands.
+let initPromise: Promise<void> | null = null;
 
 export const useStore = create<AppState>((set, get) => ({
   ready: false,
-  config: { activePreset: DEFAULT_PRESET, categories: categoriesForPreset(DEFAULT_PRESET) },
+  projects: [],
+  activeProjectId: '',
+  config: blankConfig(DEFAULT_PRESET),
+  configsByProject: {},
   entries: [],
   todos: [],
   events: [],
 
   async init() {
-    let config = await storage.getConfig();
-    if (!config) {
-      config = { activePreset: DEFAULT_PRESET, categories: categoriesForPreset(DEFAULT_PRESET) };
-      await storage.saveConfig(config);
+    if (initPromise) return initPromise;
+    initPromise = (async () => {
+      let projects = await storage.listProjects();
+      if (projects.length === 0) {
+        const project: Project = { id: uid(), name: 'Architecture Logbook', order: 0 };
+        await storage.saveProject(project);
+        await storage.saveConfig(project.id, blankConfig(DEFAULT_PRESET));
+        projects = [project];
+      }
+      projects = [...projects].sort((a, b) => a.order - b.order);
+
+      const configsByProject: Record<string, Config> = {};
+      for (const p of projects) {
+        configsByProject[p.id] = (await storage.getConfig(p.id)) ?? blankConfig(DEFAULT_PRESET);
+      }
+
+      let activeProjectId = await storage.getActiveProjectId();
+      if (!activeProjectId || !projects.some((p) => p.id === activeProjectId)) {
+        activeProjectId = projects[0].id;
+        await storage.setActiveProjectId(activeProjectId);
+      }
+
+      const [entries, todos, events] = await Promise.all([
+        storage.listEntries(),
+        storage.listTodos(),
+        storage.listEvents(),
+      ]);
+      set({
+        projects,
+        configsByProject,
+        activeProjectId,
+        config: configsByProject[activeProjectId],
+        entries,
+        todos,
+        events,
+        ready: true,
+      });
+    })();
+    return initPromise;
+  },
+
+  async addProject(name, presetId = 'blank') {
+    const projects = get().projects;
+    const maxOrder = Math.max(-1, ...projects.map((p) => p.order));
+    const project: Project = { id: uid(), name, order: maxOrder + 1 };
+    const config = blankConfig(presetId);
+    await storage.saveProject(project);
+    await storage.saveConfig(project.id, config);
+    set({
+      projects: [...projects, project],
+      configsByProject: { ...get().configsByProject, [project.id]: config },
+    });
+    await get().switchProject(project.id);
+    return project;
+  },
+
+  async renameProject(id, name) {
+    const project = get().projects.find((p) => p.id === id);
+    if (!project) return;
+    const updated = { ...project, name };
+    await storage.saveProject(updated);
+    set({ projects: get().projects.map((p) => (p.id === id ? updated : p)) });
+  },
+
+  async deleteProject(id) {
+    const projects = get().projects;
+    if (projects.length <= 1) return; // always keep at least one project
+    await storage.deleteProject(id);
+    const remaining = projects.filter((p) => p.id !== id).sort((a, b) => a.order - b.order);
+    const configsByProject = { ...get().configsByProject };
+    delete configsByProject[id];
+    const entries = get().entries.filter((e) => e.projectId !== id);
+    const todos = get().todos.filter((t) => t.projectId !== id);
+    const events = get().events.filter((e) => e.projectId !== id);
+
+    let activeProjectId = get().activeProjectId;
+    let config = get().config;
+    if (activeProjectId === id) {
+      activeProjectId = remaining[0].id;
+      config = configsByProject[activeProjectId];
+      await storage.setActiveProjectId(activeProjectId);
     }
-    const [entries, todos, events] = await Promise.all([
-      storage.listEntries(),
-      storage.listTodos(),
-      storage.listEvents(),
-    ]);
-    set({ config, entries, todos, events, ready: true });
+    set({ projects: remaining, configsByProject, entries, todos, events, activeProjectId, config });
+  },
+
+  async switchProject(id) {
+    if (id === get().activeProjectId) return;
+    const config = get().configsByProject[id];
+    if (!config) return;
+    await storage.setActiveProjectId(id);
+    set({ activeProjectId: id, config });
   },
 
   async addEntry(input, attachments = []) {
     const id = uid();
+    const projectId = get().activeProjectId;
     const ts = nowIso();
     const attachmentIds: string[] = [];
     for (const a of attachments) {
@@ -76,6 +178,7 @@ export const useStore = create<AppState>((set, get) => ({
     const entry: Entry = {
       ...input,
       id,
+      projectId,
       createdAt: ts,
       updatedAt: ts,
       attachmentIds: [...input.attachmentIds, ...attachmentIds],
@@ -107,19 +210,28 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   async setCategories(categories) {
+    const activeProjectId = get().activeProjectId;
     const config = { ...get().config, categories };
-    await storage.saveConfig(config);
-    set({ config });
+    await storage.saveConfig(activeProjectId, config);
+    set({ config, configsByProject: { ...get().configsByProject, [activeProjectId]: config } });
   },
 
   async applyPreset(presetId) {
+    const activeProjectId = get().activeProjectId;
     const config: Config = { activePreset: presetId, categories: categoriesForPreset(presetId) };
-    await storage.saveConfig(config);
-    set({ config });
+    await storage.saveConfig(activeProjectId, config);
+    set({ config, configsByProject: { ...get().configsByProject, [activeProjectId]: config } });
   },
 
   async addTodo(text, dueDate) {
-    const todo: Todo = { id: uid(), text, done: false, dueDate, createdAt: nowIso() };
+    const todo: Todo = {
+      id: uid(),
+      projectId: get().activeProjectId,
+      text,
+      done: false,
+      dueDate,
+      createdAt: nowIso(),
+    };
     await storage.saveTodo(todo);
     set({ todos: [...get().todos, todo] });
   },
@@ -136,7 +248,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   async addEvent(title, date, note) {
-    const ev: CalendarEvent = { id: uid(), title, date, note };
+    const ev: CalendarEvent = { id: uid(), projectId: get().activeProjectId, title, date, note };
     await storage.saveEvent(ev);
     set({ events: [...get().events, ev] });
   },
@@ -150,6 +262,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
   async importBundle(bundle) {
     await storage.importAll(bundle);
+    initPromise = null; // force a fresh load of the just-imported data
     await get().init();
   },
 }));

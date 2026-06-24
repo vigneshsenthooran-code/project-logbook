@@ -9,6 +9,7 @@ export interface LinkMeta {
 
 export interface Entry {
   id: string;
+  projectId: string;
   type: EntryType;
   createdAt: string; // ISO
   updatedAt: string; // ISO
@@ -40,6 +41,7 @@ export interface Attachment {
 
 export interface Todo {
   id: string;
+  projectId: string;
   text: string;
   done: boolean;
   dueDate?: string; // ISO date (YYYY-MM-DD)
@@ -48,6 +50,7 @@ export interface Todo {
 
 export interface CalendarEvent {
   id: string;
+  projectId: string;
   title: string;
   date: string; // ISO date (YYYY-MM-DD)
   note?: string;
@@ -56,6 +59,13 @@ export interface CalendarEvent {
 export interface Config {
   activePreset: string;
   categories: Category[];
+}
+
+/** A standalone capture space — its own categories, entries, to-dos and calendar. */
+export interface Project {
+  id: string;
+  name: string;
+  order: number;
 }
 
 /** The reserved fallback bucket for unmatched entries. */

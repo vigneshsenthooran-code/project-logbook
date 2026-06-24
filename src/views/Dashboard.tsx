@@ -7,7 +7,8 @@ import TodoList from '../components/TodoList';
 import { filterAndSort } from '../lib/sortEntries';
 
 export default function Dashboard() {
-  const entries = useStore((s) => s.entries);
+  const activeProjectId = useStore((s) => s.activeProjectId);
+  const entries = useStore((s) => s.entries).filter((e) => e.projectId === activeProjectId);
   const categories = useStore((s) => s.config.categories);
 
   const recent = filterAndSort(entries, categories, new Set(), 'newest').slice(0, 8);
