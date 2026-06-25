@@ -66,6 +66,20 @@ export interface Project {
   id: string;
   name: string;
   order: number;
+  description?: string;
+  coverAttachmentId?: string;
+  startDate?: string; // ISO date (YYYY-MM-DD)
+  archived?: boolean;
+  createdAt?: string; // ISO
+}
+
+/** A user-saved, reusable category set — appears in the preset picker for every project. */
+export interface CustomPreset {
+  id: string;
+  name: string;
+  description: string;
+  categories: Category[];
+  createdAt: string;
 }
 
 /** The reserved fallback bucket for unmatched entries. */

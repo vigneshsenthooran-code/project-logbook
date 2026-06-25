@@ -2,6 +2,9 @@ import type { Category } from '../types';
 import { INBOX_ID } from '../types';
 import { blankCategories } from './blank';
 import { utsCategories } from './uts';
+import { bookCategories } from './book';
+import { scientificStudyCategories } from './scientificStudy';
+import { phdResearchCategories } from './phdResearch';
 
 export interface Preset {
   id: string;
@@ -33,15 +36,39 @@ export const PRESETS: Preset[] = [
       'Feedback + Ideas capture, then the eleven UTS design-log headings in submission order.',
     categories: utsCategories,
   },
+  {
+    id: 'book',
+    name: 'Book Writing',
+    description: 'Premise, characters and world-building through chapters, feedback and revisions.',
+    categories: bookCategories,
+  },
+  {
+    id: 'scientific-study',
+    name: 'Scientific Study',
+    description: 'Hypothesis and literature through methodology, data, analysis and write-up.',
+    categories: scientificStudyCategories,
+  },
+  {
+    id: 'phd-research',
+    name: 'PhD Research',
+    description: 'Candidature-spanning categories: supervisor feedback, literature, fieldwork, thesis chapters and publications.',
+    categories: phdResearchCategories,
+  },
 ];
 
-export function presetById(id: string): Preset {
-  return PRESETS.find((p) => p.id === id) ?? PRESETS[0];
+export function presetById(id: string): Preset | undefined {
+  return PRESETS.find((p) => p.id === id);
 }
 
-/** Build the full category list for a preset, with the Inbox fallback appended. */
+/** Build the full category list for a built-in preset id, with the Inbox fallback appended. */
 export function categoriesForPreset(id: string): Category[] {
-  const preset = presetById(id);
+  const preset = presetById(id) ?? PRESETS[0];
   const cats = preset.categories.map((c) => ({ ...c, keywords: [...c.keywords] }));
+  return [...cats, { ...INBOX }];
+}
+
+/** Build the full category list (with Inbox appended) from an arbitrary category set, e.g. a custom preset. */
+export function categoriesFromSet(categories: Category[]): Category[] {
+  const cats = categories.filter((c) => c.id !== INBOX_ID).map((c) => ({ ...c, keywords: [...c.keywords] }));
   return [...cats, { ...INBOX }];
 }

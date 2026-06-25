@@ -1,9 +1,11 @@
 import { create } from 'zustand';
-import type { Attachment, CalendarEvent, Category, Config, Entry, Project, Todo } from './types';
+import type { Attachment, CalendarEvent, Category, Config, CustomPreset, Entry, Project, Todo } from './types';
+import { INBOX_ID } from './types';
 import { indexedDbAdapter } from './storage/indexedDbAdapter';
-import type { LogbookBundle, StorageAdapter } from './storage/StorageAdapter';
-import { categoriesForPreset } from './presets';
+import type { LogbookBundle, ProjectBundle, StorageAdapter } from './storage/StorageAdapter';
+import { categoriesForPreset, categoriesFromSet } from './presets';
 import { nowIso, uid } from './lib/id';
+import { dataUrlToBlob } from './storage/blob';
 
 let storage: StorageAdapter = indexedDbAdapter;
 
@@ -19,6 +21,13 @@ function blankConfig(presetId: string): Config {
   return { activePreset: presetId, categories: categoriesForPreset(presetId) };
 }
 
+/** Resolves a preset id against built-ins first, then the given custom-preset list. */
+function configForPreset(presetId: string, customPresets: CustomPreset[]): Config {
+  const custom = customPresets.find((p) => p.id === presetId);
+  if (custom) return { activePreset: presetId, categories: categoriesFromSet(custom.categories) };
+  return blankConfig(presetId);
+}
+
 interface AppState {
   ready: boolean;
   projects: Project[];
@@ -29,14 +38,28 @@ interface AppState {
   entries: Entry[];
   todos: Todo[];
   events: CalendarEvent[];
+  customPresets: CustomPreset[];
 
   init: () => Promise<void>;
 
   // projects
   addProject: (name: string, presetId?: string) => Promise<Project>;
-  renameProject: (id: string, name: string) => Promise<void>;
+  updateProject: (
+    id: string,
+    patch: Partial<Pick<Project, 'name' | 'description' | 'startDate'>>
+  ) => Promise<void>;
+  setProjectCover: (id: string, file: { name: string; mime: string; blob: Blob }) => Promise<void>;
+  removeProjectCover: (id: string) => Promise<void>;
+  archiveProject: (id: string) => Promise<void>;
+  unarchiveProject: (id: string) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   switchProject: (id: string) => Promise<void>;
+  exportProject: (id: string) => Promise<ProjectBundle>;
+  importProject: (bundle: ProjectBundle) => Promise<Project>;
+
+  // custom presets (global, app-wide)
+  addCustomPreset: (name: string, description: string, categories: Category[]) => Promise<CustomPreset>;
+  deleteCustomPreset: (id: string) => Promise<void>;
 
   // entries
   addEntry: (
@@ -76,13 +99,16 @@ export const useStore = create<AppState>((set, get) => ({
   entries: [],
   todos: [],
   events: [],
+  customPresets: [],
 
   async init() {
     if (initPromise) return initPromise;
     initPromise = (async () => {
+      const customPresets = await storage.listCustomPresets();
+
       let projects = await storage.listProjects();
       if (projects.length === 0) {
-        const project: Project = { id: uid(), name: 'Architecture Logbook', order: 0 };
+        const project: Project = { id: uid(), name: 'Architecture Logbook', order: 0, createdAt: nowIso() };
         await storage.saveProject(project);
         await storage.saveConfig(project.id, blankConfig(DEFAULT_PRESET));
         projects = [project];
@@ -91,12 +117,12 @@ export const useStore = create<AppState>((set, get) => ({
 
       const configsByProject: Record<string, Config> = {};
       for (const p of projects) {
-        configsByProject[p.id] = (await storage.getConfig(p.id)) ?? blankConfig(DEFAULT_PRESET);
+        configsByProject[p.id] = (await storage.getConfig(p.id)) ?? configForPreset('blank', customPresets);
       }
 
       let activeProjectId = await storage.getActiveProjectId();
-      if (!activeProjectId || !projects.some((p) => p.id === activeProjectId)) {
-        activeProjectId = projects[0].id;
+      if (!activeProjectId || !projects.some((p) => p.id === activeProjectId && !p.archived)) {
+        activeProjectId = (projects.find((p) => !p.archived) ?? projects[0]).id;
         await storage.setActiveProjectId(activeProjectId);
       }
 
@@ -113,6 +139,7 @@ export const useStore = create<AppState>((set, get) => ({
         entries,
         todos,
         events,
+        customPresets,
         ready: true,
       });
     })();
@@ -122,8 +149,8 @@ export const useStore = create<AppState>((set, get) => ({
   async addProject(name, presetId = 'blank') {
     const projects = get().projects;
     const maxOrder = Math.max(-1, ...projects.map((p) => p.order));
-    const project: Project = { id: uid(), name, order: maxOrder + 1 };
-    const config = blankConfig(presetId);
+    const project: Project = { id: uid(), name, order: maxOrder + 1, createdAt: nowIso() };
+    const config = configForPreset(presetId, get().customPresets);
     await storage.saveProject(project);
     await storage.saveConfig(project.id, config);
     set({
@@ -134,10 +161,60 @@ export const useStore = create<AppState>((set, get) => ({
     return project;
   },
 
-  async renameProject(id, name) {
+  async updateProject(id, patch) {
     const project = get().projects.find((p) => p.id === id);
     if (!project) return;
-    const updated = { ...project, name };
+    const updated = { ...project, ...patch };
+    await storage.saveProject(updated);
+    set({ projects: get().projects.map((p) => (p.id === id ? updated : p)) });
+  },
+
+  async setProjectCover(id, file) {
+    const project = get().projects.find((p) => p.id === id);
+    if (!project) return;
+    const oldCoverId = project.coverAttachmentId;
+    const coverAttachmentId = uid();
+    await storage.saveAttachment({ id: coverAttachmentId, entryId: id, ...file });
+    if (oldCoverId) await storage.deleteAttachment(oldCoverId);
+    const updated = { ...project, coverAttachmentId };
+    await storage.saveProject(updated);
+    set({ projects: get().projects.map((p) => (p.id === id ? updated : p)) });
+  },
+
+  async removeProjectCover(id) {
+    const project = get().projects.find((p) => p.id === id);
+    if (!project?.coverAttachmentId) return;
+    await storage.deleteAttachment(project.coverAttachmentId);
+    const updated = { ...project, coverAttachmentId: undefined };
+    await storage.saveProject(updated);
+    set({ projects: get().projects.map((p) => (p.id === id ? updated : p)) });
+  },
+
+  async archiveProject(id) {
+    const projects = get().projects;
+    const target = projects.find((p) => p.id === id);
+    if (!target || target.archived) return;
+    if (projects.filter((p) => !p.archived).length <= 1) {
+      throw new Error('You need at least one active project.');
+    }
+    const updated = { ...target, archived: true };
+    await storage.saveProject(updated);
+    const nextProjects = projects.map((p) => (p.id === id ? updated : p));
+
+    let activeProjectId = get().activeProjectId;
+    let config = get().config;
+    if (activeProjectId === id) {
+      activeProjectId = nextProjects.find((p) => !p.archived)!.id;
+      config = get().configsByProject[activeProjectId];
+      await storage.setActiveProjectId(activeProjectId);
+    }
+    set({ projects: nextProjects, activeProjectId, config });
+  },
+
+  async unarchiveProject(id) {
+    const project = get().projects.find((p) => p.id === id);
+    if (!project || !project.archived) return;
+    const updated = { ...project, archived: false };
     await storage.saveProject(updated);
     set({ projects: get().projects.map((p) => (p.id === id ? updated : p)) });
   },
@@ -145,6 +222,8 @@ export const useStore = create<AppState>((set, get) => ({
   async deleteProject(id) {
     const projects = get().projects;
     if (projects.length <= 1) return; // always keep at least one project
+    const target = projects.find((p) => p.id === id);
+    if (target?.coverAttachmentId) await storage.deleteAttachment(target.coverAttachmentId);
     await storage.deleteProject(id);
     const remaining = projects.filter((p) => p.id !== id).sort((a, b) => a.order - b.order);
     const configsByProject = { ...get().configsByProject };
@@ -156,7 +235,7 @@ export const useStore = create<AppState>((set, get) => ({
     let activeProjectId = get().activeProjectId;
     let config = get().config;
     if (activeProjectId === id) {
-      activeProjectId = remaining[0].id;
+      activeProjectId = (remaining.find((p) => !p.archived) ?? remaining[0]).id;
       config = configsByProject[activeProjectId];
       await storage.setActiveProjectId(activeProjectId);
     }
@@ -224,9 +303,92 @@ export const useStore = create<AppState>((set, get) => ({
 
   async applyPreset(presetId) {
     const activeProjectId = get().activeProjectId;
-    const config: Config = { activePreset: presetId, categories: categoriesForPreset(presetId) };
+    const config = configForPreset(presetId, get().customPresets);
     await storage.saveConfig(activeProjectId, config);
     set({ config, configsByProject: { ...get().configsByProject, [activeProjectId]: config } });
+  },
+
+  async addCustomPreset(name, description, categories) {
+    const preset: CustomPreset = {
+      id: uid(),
+      name,
+      description,
+      categories: categories.filter((c) => c.id !== INBOX_ID).map((c) => ({ ...c, keywords: [...c.keywords] })),
+      createdAt: nowIso(),
+    };
+    await storage.saveCustomPreset(preset);
+    set({ customPresets: [...get().customPresets, preset] });
+    return preset;
+  },
+
+  async deleteCustomPreset(id) {
+    await storage.deleteCustomPreset(id);
+    set({ customPresets: get().customPresets.filter((p) => p.id !== id) });
+  },
+
+  exportProject(id) {
+    return storage.exportProject(id);
+  },
+
+  async importProject(bundle) {
+    const idMap = new Map<string, string>();
+    const remap = (oldId: string) => {
+      if (!idMap.has(oldId)) idMap.set(oldId, uid());
+      return idMap.get(oldId)!;
+    };
+
+    const projects = get().projects;
+    const maxOrder = Math.max(-1, ...projects.map((p) => p.order));
+    const newProjectId = uid();
+
+    for (const a of bundle.attachments) {
+      const blob = await dataUrlToBlob(a.dataUrl);
+      const entryId = a.entryId === bundle.project.id ? newProjectId : remap(a.entryId);
+      await storage.saveAttachment({ id: remap(a.id), entryId, name: a.name, mime: a.mime, blob });
+    }
+
+    const project: Project = {
+      ...bundle.project,
+      id: newProjectId,
+      order: maxOrder + 1,
+      archived: false,
+      coverAttachmentId: bundle.project.coverAttachmentId ? remap(bundle.project.coverAttachmentId) : undefined,
+    };
+    await storage.saveProject(project);
+    await storage.saveConfig(newProjectId, bundle.config);
+
+    const newEntries: Entry[] = [];
+    for (const e of bundle.entries) {
+      const entry: Entry = {
+        ...e,
+        id: remap(e.id),
+        projectId: newProjectId,
+        attachmentIds: e.attachmentIds.map((aid) => remap(aid)),
+      };
+      await storage.saveEntry(entry);
+      newEntries.push(entry);
+    }
+    const newTodos: Todo[] = [];
+    for (const t of bundle.todos) {
+      const todo: Todo = { ...t, id: remap(t.id), projectId: newProjectId };
+      await storage.saveTodo(todo);
+      newTodos.push(todo);
+    }
+    const newEvents: CalendarEvent[] = [];
+    for (const ev of bundle.events) {
+      const event: CalendarEvent = { ...ev, id: remap(ev.id), projectId: newProjectId };
+      await storage.saveEvent(event);
+      newEvents.push(event);
+    }
+
+    set({
+      projects: [...projects, project],
+      configsByProject: { ...get().configsByProject, [newProjectId]: bundle.config },
+      entries: [...get().entries, ...newEntries],
+      todos: [...get().todos, ...newTodos],
+      events: [...get().events, ...newEvents],
+    });
+    return project;
   },
 
   async addTodo(text, dueDate) {

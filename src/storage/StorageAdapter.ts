@@ -1,4 +1,4 @@
-import type { Attachment, CalendarEvent, Config, Entry, Project, Todo } from '../types';
+import type { Attachment, CalendarEvent, Config, CustomPreset, Entry, Project, Todo } from '../types';
 
 /** A portable snapshot of the whole app (every project), used for export / import. */
 export interface LogbookBundle {
@@ -12,6 +12,20 @@ export interface LogbookBundle {
   todos: Todo[];
   events: CalendarEvent[];
   /** Attachments with their blob encoded as a base64 data URL. */
+  attachments: { id: string; entryId: string; name: string; mime: string; dataUrl: string }[];
+  /** Global, app-wide custom presets (not scoped to any one project). Absent in older exports. */
+  customPresets?: CustomPreset[];
+}
+
+/** A portable snapshot of a single project, used for per-project export / import. */
+export interface ProjectBundle {
+  version: 1;
+  exportedAt: string;
+  project: Project;
+  config: Config;
+  entries: Entry[];
+  todos: Todo[];
+  events: CalendarEvent[];
   attachments: { id: string; entryId: string; name: string; mime: string; dataUrl: string }[];
 }
 
@@ -49,6 +63,13 @@ export interface StorageAdapter {
   saveEvent(event: CalendarEvent): Promise<void>;
   deleteEvent(id: string): Promise<void>;
 
+  listCustomPresets(): Promise<CustomPreset[]>;
+  saveCustomPreset(preset: CustomPreset): Promise<void>;
+  deleteCustomPreset(id: string): Promise<void>;
+
   exportAll(): Promise<LogbookBundle>;
   importAll(bundle: LogbookBundle): Promise<void>;
+
+  /** A portable snapshot of a single project — used for per-project export. */
+  exportProject(projectId: string): Promise<ProjectBundle>;
 }

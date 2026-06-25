@@ -1,10 +1,10 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { Attachment, CalendarEvent, Config, Entry, Project, Todo } from '../types';
-import type { LogbookBundle, StorageAdapter } from './StorageAdapter';
+import type { Attachment, CalendarEvent, Config, CustomPreset, Entry, Project, Todo } from '../types';
+import type { LogbookBundle, ProjectBundle, StorageAdapter } from './StorageAdapter';
 import { blobToDataUrl, dataUrlToBlob } from './blob';
 
 const DB_NAME = 'project-logbook';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const ACTIVE_PROJECT_KEY = 'activeProjectId';
 
 interface LogbookDB extends DBSchema {
@@ -19,6 +19,7 @@ interface LogbookDB extends DBSchema {
   attachments: { key: string; value: Attachment };
   todos: { key: string; value: Todo; indexes: { byProject: string } };
   calendar: { key: string; value: CalendarEvent; indexes: { byProject: string } };
+  presets: { key: string; value: CustomPreset };
 }
 
 let dbPromise: Promise<IDBPDatabase<LogbookDB>> | null = null;
@@ -36,18 +37,23 @@ function db(): Promise<IDBPDatabase<LogbookDB>> {
             if (raw.objectStoreNames.contains(name)) raw.deleteObjectStore(name);
           }
         }
-        database.createObjectStore('projects', { keyPath: 'id' });
-        database.createObjectStore('configs');
-        database.createObjectStore('meta');
-        const entries = database.createObjectStore('entries', { keyPath: 'id' });
-        entries.createIndex('byCategory', 'categoryId');
-        entries.createIndex('byCreated', 'createdAt');
-        entries.createIndex('byProject', 'projectId');
-        database.createObjectStore('attachments', { keyPath: 'id' });
-        const todos = database.createObjectStore('todos', { keyPath: 'id' });
-        todos.createIndex('byProject', 'projectId');
-        const calendar = database.createObjectStore('calendar', { keyPath: 'id' });
-        calendar.createIndex('byProject', 'projectId');
+        if (oldVersion < 2) {
+          database.createObjectStore('projects', { keyPath: 'id' });
+          database.createObjectStore('configs');
+          database.createObjectStore('meta');
+          const entries = database.createObjectStore('entries', { keyPath: 'id' });
+          entries.createIndex('byCategory', 'categoryId');
+          entries.createIndex('byCreated', 'createdAt');
+          entries.createIndex('byProject', 'projectId');
+          database.createObjectStore('attachments', { keyPath: 'id' });
+          const todos = database.createObjectStore('todos', { keyPath: 'id' });
+          todos.createIndex('byProject', 'projectId');
+          const calendar = database.createObjectStore('calendar', { keyPath: 'id' });
+          calendar.createIndex('byProject', 'projectId');
+        }
+        if (oldVersion < 3) {
+          database.createObjectStore('presets', { keyPath: 'id' });
+        }
       },
     });
   }
@@ -143,6 +149,50 @@ export const indexedDbAdapter: StorageAdapter = {
     await (await db()).delete('calendar', id);
   },
 
+  async listCustomPresets() {
+    return (await db()).getAll('presets');
+  },
+  async saveCustomPreset(preset) {
+    await (await db()).put('presets', preset);
+  },
+  async deleteCustomPreset(id) {
+    await (await db()).delete('presets', id);
+  },
+
+  async exportProject(projectId) {
+    const database = await db();
+    const project = await database.get('projects', projectId);
+    if (!project) throw new Error('Project not found');
+    const config = (await database.get('configs', projectId)) ?? { activePreset: 'blank', categories: [] };
+    const entries = await database.getAllFromIndex('entries', 'byProject', projectId);
+    const todos = await database.getAllFromIndex('todos', 'byProject', projectId);
+    const events = await database.getAllFromIndex('calendar', 'byProject', projectId);
+    const attachmentIds = new Set(entries.flatMap((e) => e.attachmentIds));
+    if (project.coverAttachmentId) attachmentIds.add(project.coverAttachmentId);
+    const rawAttachments = (
+      await Promise.all([...attachmentIds].map((id) => database.get('attachments', id)))
+    ).filter((a): a is Attachment => !!a);
+    const attachments = await Promise.all(
+      rawAttachments.map(async (a) => ({
+        id: a.id,
+        entryId: a.entryId,
+        name: a.name,
+        mime: a.mime,
+        dataUrl: await blobToDataUrl(a.blob),
+      }))
+    );
+    return {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      project,
+      config,
+      entries,
+      todos,
+      events,
+      attachments,
+    } satisfies ProjectBundle;
+  },
+
   async exportAll() {
     const database = await db();
     const projects = await database.getAll('projects');
@@ -165,6 +215,7 @@ export const indexedDbAdapter: StorageAdapter = {
         dataUrl: await blobToDataUrl(a.blob),
       }))
     );
+    const customPresets = await database.getAll('presets');
     return {
       version: 2,
       exportedAt: new Date().toISOString(),
@@ -175,6 +226,7 @@ export const indexedDbAdapter: StorageAdapter = {
       todos,
       events,
       attachments,
+      customPresets,
     } satisfies LogbookBundle;
   },
 
@@ -182,7 +234,7 @@ export const indexedDbAdapter: StorageAdapter = {
     const database = await db();
     // Replace everything with the bundle's contents.
     const tx = database.transaction(
-      ['projects', 'configs', 'meta', 'entries', 'attachments', 'todos', 'calendar'],
+      ['projects', 'configs', 'meta', 'entries', 'attachments', 'todos', 'calendar', 'presets'],
       'readwrite'
     );
     await Promise.all([
@@ -193,8 +245,10 @@ export const indexedDbAdapter: StorageAdapter = {
       tx.objectStore('attachments').clear(),
       tx.objectStore('todos').clear(),
       tx.objectStore('calendar').clear(),
+      tx.objectStore('presets').clear(),
     ]);
     for (const p of bundle.projects) await tx.objectStore('projects').put(p);
+    for (const preset of bundle.customPresets ?? []) await tx.objectStore('presets').put(preset);
     for (const [projectId, config] of Object.entries(bundle.configs)) {
       await tx.objectStore('configs').put(config, projectId);
     }

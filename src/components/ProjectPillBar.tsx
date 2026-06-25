@@ -13,8 +13,9 @@ export default function ProjectPillBar() {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
 
-  const idx = projects.findIndex((p) => p.id === activeProjectId);
-  const active = projects[idx];
+  const visible = projects.filter((p) => !p.archived);
+  const idx = visible.findIndex((p) => p.id === activeProjectId);
+  const active = visible[idx];
 
   if (!active) return null;
 
@@ -22,8 +23,8 @@ export default function ProjectPillBar() {
   const cats = topCategories(categories).filter((c) => c.id !== INBOX_ID);
 
   function step(dir: -1 | 1) {
-    if (projects.length < 2) return;
-    const next = projects[(idx + dir + projects.length) % projects.length];
+    if (visible.length < 2) return;
+    const next = visible[(idx + dir + visible.length) % visible.length];
     setExpanded(false);
     void switchProject(next.id);
   }
@@ -59,7 +60,7 @@ export default function ProjectPillBar() {
         <button
           className="projectbar-arrow"
           onClick={() => step(-1)}
-          disabled={projects.length < 2}
+          disabled={visible.length < 2}
           aria-label="Previous project"
         >
           ‹
@@ -74,7 +75,7 @@ export default function ProjectPillBar() {
         <button
           className="projectbar-arrow"
           onClick={() => step(1)}
-          disabled={projects.length < 2}
+          disabled={visible.length < 2}
           aria-label="Next project"
         >
           ›

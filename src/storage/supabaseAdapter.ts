@@ -1,5 +1,5 @@
-import type { CalendarEvent, Config, Entry, Project, Todo } from '../types';
-import type { LogbookBundle, StorageAdapter } from './StorageAdapter';
+import type { CalendarEvent, Config, CustomPreset, Entry, Project, Todo } from '../types';
+import type { LogbookBundle, ProjectBundle, StorageAdapter } from './StorageAdapter';
 import { supabase } from '../lib/supabaseClient';
 import { blobToDataUrl, dataUrlToBlob } from './blob';
 
@@ -94,17 +94,48 @@ function attachmentPath(uid: string, attachmentId: string, name: string): string
   return `${uid}/${attachmentId}-${name}`;
 }
 
+function rowToProject(r: Record<string, unknown>): Project {
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    order: r.order as number,
+    description: (r.description as string | null) ?? undefined,
+    coverAttachmentId: (r.cover_attachment_id as string | null) ?? undefined,
+    startDate: (r.start_date as string | null) ?? undefined,
+    archived: (r.archived as boolean | null) ?? undefined,
+    createdAt: (r.created_at as string | null) ?? undefined,
+  };
+}
+
+function rowToPreset(r: Record<string, unknown>): CustomPreset {
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    description: r.description as string,
+    categories: r.categories as CustomPreset['categories'],
+    createdAt: r.created_at as string,
+  };
+}
+
 export const supabaseAdapter: StorageAdapter = {
   async listProjects() {
     const { data, error } = await supabase.from('projects').select('*');
     if (error) throw error;
-    return (data ?? []).map((r) => ({ id: r.id, name: r.name, order: r.order }) as Project);
+    return (data ?? []).map(rowToProject);
   },
   async saveProject(project) {
     const uid = await userId();
-    const { error } = await supabase
-      .from('projects')
-      .upsert({ id: project.id, user_id: uid, name: project.name, order: project.order });
+    const { error } = await supabase.from('projects').upsert({
+      id: project.id,
+      user_id: uid,
+      name: project.name,
+      order: project.order,
+      description: project.description ?? null,
+      cover_attachment_id: project.coverAttachmentId ?? null,
+      start_date: project.startDate ?? null,
+      archived: project.archived ?? false,
+      created_at: project.createdAt ?? null,
+    });
     if (error) throw error;
   },
   async deleteProject(id) {
@@ -219,6 +250,85 @@ export const supabaseAdapter: StorageAdapter = {
     if (error) throw error;
   },
 
+  async listCustomPresets() {
+    const { data, error } = await supabase.from('presets').select('*');
+    if (error) throw error;
+    return (data ?? []).map(rowToPreset);
+  },
+  async saveCustomPreset(preset) {
+    const uid = await userId();
+    const { error } = await supabase.from('presets').upsert({
+      id: preset.id,
+      user_id: uid,
+      name: preset.name,
+      description: preset.description,
+      categories: preset.categories,
+      created_at: preset.createdAt,
+    });
+    if (error) throw error;
+  },
+  async deleteCustomPreset(id) {
+    const { error } = await supabase.from('presets').delete().eq('id', id);
+    if (error) throw error;
+  },
+
+  async exportProject(projectId) {
+    const { data: projectRow, error: projectError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .maybeSingle();
+    if (projectError) throw projectError;
+    if (!projectRow) throw new Error('Project not found');
+    const project = rowToProject(projectRow);
+    const config = (await this.getConfig(projectId)) ?? { activePreset: 'blank', categories: [] };
+    const { data: entryRows, error: entryError } = await supabase
+      .from('entries')
+      .select('*')
+      .eq('project_id', projectId);
+    if (entryError) throw entryError;
+    const entries = (entryRows ?? []).map(rowToEntry);
+    const { data: todoRows, error: todoError } = await supabase
+      .from('todos')
+      .select('*')
+      .eq('project_id', projectId);
+    if (todoError) throw todoError;
+    const todos = (todoRows ?? []).map(rowToTodo);
+    const { data: eventRows, error: eventError } = await supabase
+      .from('calendar_events')
+      .select('*')
+      .eq('project_id', projectId);
+    if (eventError) throw eventError;
+    const events = (eventRows ?? []).map(rowToEvent);
+    const attachmentIds = new Set(entries.flatMap((e) => e.attachmentIds));
+    if (project.coverAttachmentId) attachmentIds.add(project.coverAttachmentId);
+    const attachments = (
+      await Promise.all(
+        [...attachmentIds].map(async (id) => {
+          const att = await this.getAttachment(id);
+          if (!att) return undefined;
+          return {
+            id: att.id,
+            entryId: att.entryId,
+            name: att.name,
+            mime: att.mime,
+            dataUrl: await blobToDataUrl(att.blob),
+          };
+        })
+      )
+    ).filter((a): a is { id: string; entryId: string; name: string; mime: string; dataUrl: string } => !!a);
+    return {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      project,
+      config,
+      entries,
+      todos,
+      events,
+      attachments,
+    } satisfies ProjectBundle;
+  },
+
   async exportAll() {
     const projects = await this.listProjects();
     const configEntries = await Promise.all(
@@ -244,6 +354,7 @@ export const supabaseAdapter: StorageAdapter = {
         };
       })
     );
+    const customPresets = await this.listCustomPresets();
     return {
       version: 2,
       exportedAt: new Date().toISOString(),
@@ -254,11 +365,13 @@ export const supabaseAdapter: StorageAdapter = {
       todos,
       events,
       attachments,
+      customPresets,
     } satisfies LogbookBundle;
   },
 
   async importAll(bundle) {
     for (const p of bundle.projects) await this.saveProject(p);
+    for (const preset of bundle.customPresets ?? []) await this.saveCustomPreset(preset);
     for (const [projectId, config] of Object.entries(bundle.configs)) {
       await this.saveConfig(projectId, config);
     }

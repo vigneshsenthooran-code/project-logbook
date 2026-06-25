@@ -6,6 +6,19 @@ create table if not exists projects (
   user_id uuid not null references auth.users(id) on delete cascade,
   name text not null,
   "order" integer not null default 0,
+  description text,
+  cover_attachment_id uuid,
+  start_date date,
+  archived boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists presets (
+  id uuid primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  description text not null default '',
+  categories jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now()
 );
 
@@ -72,6 +85,7 @@ create table if not exists meta (
 
 -- Row Level Security: every row is only visible/writable by the user who owns it.
 alter table projects enable row level security;
+alter table presets enable row level security;
 alter table configs enable row level security;
 alter table entries enable row level security;
 alter table attachments enable row level security;
@@ -80,6 +94,7 @@ alter table calendar_events enable row level security;
 alter table meta enable row level security;
 
 create policy "own rows" on projects for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "own rows" on presets for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own rows" on configs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own rows" on entries for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own rows" on attachments for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

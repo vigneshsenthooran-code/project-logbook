@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useStore } from '../store';
 import type { Category } from '../types';
 import { INBOX_ID } from '../types';
@@ -19,8 +20,22 @@ const SWATCHES = [
 export default function CategoryManager() {
   const categories = useStore((s) => s.config.categories);
   const setCategories = useStore((s) => s.setCategories);
+  const addCustomPreset = useStore((s) => s.addCustomPreset);
+
+  const [savingPreset, setSavingPreset] = useState(false);
+  const [presetName, setPresetName] = useState('');
+  const [presetDescription, setPresetDescription] = useState('');
 
   const tops = topCategories(categories).filter((c) => c.id !== INBOX_ID);
+
+  async function savePreset() {
+    const name = presetName.trim();
+    if (!name) return;
+    await addCustomPreset(name, presetDescription.trim(), categories);
+    setSavingPreset(false);
+    setPresetName('');
+    setPresetDescription('');
+  }
 
   function update(id: string, patch: Partial<Category>) {
     void setCategories(categories.map((c) => (c.id === id ? { ...c, ...patch } : c)));
@@ -78,10 +93,38 @@ export default function CategoryManager() {
     <div className="catmgr">
       <div className="catmgr-head">
         <h2 className="t-display-sm">Categories &amp; keywords</h2>
-        <button className="btn btn-secondary" onClick={addCategory}>
-          + Add category
-        </button>
+        <div className="catmgr-head-actions">
+          <button className="btn btn-ghost" onClick={() => setSavingPreset((v) => !v)}>
+            Save as preset
+          </button>
+          <button className="btn btn-secondary" onClick={addCategory}>
+            + Add category
+          </button>
+        </div>
       </div>
+
+      {savingPreset && (
+        <div className="card catmgr-save-preset">
+          <input
+            className="input"
+            placeholder="Preset name…"
+            value={presetName}
+            onChange={(e) => setPresetName(e.target.value)}
+          />
+          <input
+            className="input"
+            placeholder="Short description (optional)"
+            value={presetDescription}
+            onChange={(e) => setPresetDescription(e.target.value)}
+          />
+          <button className="btn btn-primary btn-sm" onClick={savePreset} disabled={!presetName.trim()}>
+            Save
+          </button>
+          <button className="btn btn-text btn-sm" onClick={() => setSavingPreset(false)}>
+            Cancel
+          </button>
+        </div>
+      )}
 
       <div className="catmgr-list">
         {tops.map((cat, i) => (

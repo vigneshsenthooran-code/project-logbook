@@ -4,6 +4,7 @@ import { useStore, setActiveStorage } from './store';
 import AppShell from './components/AppShell';
 import Dashboard from './views/Dashboard';
 import Browse from './views/Browse';
+import Projects from './views/Projects';
 import Settings from './views/Settings';
 import AuthScreen from './views/AuthScreen';
 import { getStorageMode } from './storage/mode';
@@ -63,6 +64,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/browse" element={<Browse />} />
+        <Route path="/projects" element={<Projects />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
