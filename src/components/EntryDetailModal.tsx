@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Category, Entry } from '../types';
 import { useStore } from '../store';
 import { categoryName } from '../lib/categories';
+import { isImageMime, isPdfMime, isTextMime } from '../lib/file';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -25,6 +26,8 @@ export default function EntryDetailModal({
   const getAttachment = useStore((s) => s.getAttachment);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [fileMime, setFileMime] = useState<string | null>(null);
+  const [fileText, setFileText] = useState<string | null>(null);
 
   const cat = categories.find((c) => c.id === entry.categoryId);
   const sub = entry.subHeadingId ? categories.find((c) => c.id === entry.subHeadingId) : undefined;
@@ -39,6 +42,8 @@ export default function EntryDetailModal({
           url = URL.createObjectURL(att.blob);
           setMediaUrl(url);
           setFileName(att.name);
+          setFileMime(att.mime);
+          if (isTextMime(att.mime)) void att.blob.text().then((text) => alive && setFileText(text));
         }
       });
     }
@@ -69,6 +74,24 @@ export default function EntryDetailModal({
         {entry.type === 'link' && entry.link && entry.link.thumbnailUrl && (
           <div className="entry-detail-media">
             <img src={entry.link.thumbnailUrl} alt="" />
+          </div>
+        )}
+
+        {entry.type === 'file' && mediaUrl && fileMime && isImageMime(fileMime) && (
+          <div className="entry-detail-media">
+            <img src={mediaUrl} alt={fileName ?? entry.body ?? 'file'} />
+          </div>
+        )}
+
+        {entry.type === 'file' && fileMime && isTextMime(fileMime) && fileText !== null && (
+          <div className="entry-detail-media entry-detail-media-file">
+            <pre className="entry-detail-media-text">{fileText}</pre>
+          </div>
+        )}
+
+        {entry.type === 'file' && mediaUrl && fileMime && isPdfMime(fileMime) && (
+          <div className="entry-detail-media entry-detail-media-file">
+            <iframe className="entry-detail-media-frame" src={mediaUrl} title={fileName ?? entry.body ?? 'file preview'} />
           </div>
         )}
 

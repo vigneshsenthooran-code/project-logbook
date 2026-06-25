@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Category, Entry } from '../types';
 import { useStore } from '../store';
 import { categoryName } from '../lib/categories';
+import { isImageMime, isPdfMime, isTextMime } from '../lib/file';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -22,6 +23,9 @@ export default function EntryCard({
 }) {
   const getAttachment = useStore((s) => s.getAttachment);
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
+  const [thumbMime, setThumbMime] = useState<string | null>(null);
+  const [thumbName, setThumbName] = useState<string | null>(null);
+  const [thumbText, setThumbText] = useState<string | null>(null);
 
   const cat = categories.find((c) => c.id === entry.categoryId);
   const sub = entry.subHeadingId ? categories.find((c) => c.id === entry.subHeadingId) : undefined;
@@ -29,11 +33,14 @@ export default function EntryCard({
   useEffect(() => {
     let url: string | null = null;
     let alive = true;
-    if (entry.type === 'image' && entry.attachmentIds.length > 0) {
+    if ((entry.type === 'image' || entry.type === 'file') && entry.attachmentIds.length > 0) {
       void getAttachment(entry.attachmentIds[0]).then((att) => {
         if (att && alive) {
           url = URL.createObjectURL(att.blob);
           setThumbUrl(url);
+          setThumbMime(att.mime);
+          setThumbName(att.name);
+          if (isTextMime(att.mime)) void att.blob.text().then((text) => alive && setThumbText(text));
         }
       });
     }
@@ -61,6 +68,20 @@ export default function EntryCard({
         </div>
       )}
 
+      {entry.type === 'file' && (
+        <div className="entry-media">
+          {thumbUrl && thumbMime && isImageMime(thumbMime) ? (
+            <img src={thumbUrl} alt={thumbName ?? entry.body ?? 'file'} />
+          ) : thumbMime && isTextMime(thumbMime) && thumbText !== null ? (
+            <pre className="entry-media-text">{thumbText}</pre>
+          ) : thumbUrl && thumbMime && isPdfMime(thumbMime) ? (
+            <iframe className="entry-media-frame" src={thumbUrl} title={thumbName ?? entry.body ?? 'file preview'} tabIndex={-1} />
+          ) : (
+            <div className="entry-media-ph">📄</div>
+          )}
+        </div>
+      )}
+
       <div className="entry-card-body">
         <div className="entry-card-tags">
           <span className="tag">
@@ -74,7 +95,7 @@ export default function EntryCard({
 
         {entry.type === 'file' && (
           <p className="entry-text">
-            📄 {entry.body || 'Attached file'}
+            📄 {thumbName ?? entry.body ?? 'Attached file'}
           </p>
         )}
 
