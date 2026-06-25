@@ -1,11 +1,17 @@
 import { create } from 'zustand';
 import type { Attachment, CalendarEvent, Category, Config, Entry, Project, Todo } from './types';
 import { indexedDbAdapter } from './storage/indexedDbAdapter';
-import type { LogbookBundle } from './storage/StorageAdapter';
+import type { LogbookBundle, StorageAdapter } from './storage/StorageAdapter';
 import { categoriesForPreset } from './presets';
 import { nowIso, uid } from './lib/id';
 
-const storage = indexedDbAdapter;
+let storage: StorageAdapter = indexedDbAdapter;
+
+/** Swaps the backing store (e.g. switching Local <-> Cloud) and forces the next init() to reload from it. */
+export function setActiveStorage(adapter: StorageAdapter): void {
+  storage = adapter;
+  initPromise = null;
+}
 
 const DEFAULT_PRESET = 'uts';
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../store';
 import { PRESETS } from '../presets';
 import CategoryManager from '../components/CategoryManager';
+import StorageSection from '../components/StorageSection';
 
 export default function Settings() {
   const activePreset = useStore((s) => s.config.activePreset);
@@ -127,6 +128,8 @@ export default function Settings() {
       <section className="settings-section">
         <CategoryManager />
       </section>
+
+      <StorageSection />
     </div>
   );
 }
