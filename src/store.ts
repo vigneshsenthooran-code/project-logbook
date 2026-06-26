@@ -6,6 +6,7 @@ import type { LogbookBundle, ProjectBundle, StorageAdapter } from './storage/Sto
 import { categoriesForPreset, categoriesFromSet } from './presets';
 import { nowIso, uid } from './lib/id';
 import { dataUrlToBlob } from './storage/blob';
+import { DEMO_PROJECTS } from './lib/seedDemo';
 
 let storage: StorageAdapter = indexedDbAdapter;
 
@@ -84,6 +85,10 @@ interface AppState {
   // export / import
   exportBundle: () => Promise<LogbookBundle>;
   importBundle: (bundle: LogbookBundle) => Promise<void>;
+
+  // TEMPORARY demo helpers — seed / remove extra showcase projects + entries.
+  seedDemoData: () => Promise<void>;
+  clearDemoData: () => Promise<void>;
 }
 
 // React.StrictMode double-invokes effects in dev, which would otherwise race
@@ -432,5 +437,91 @@ export const useStore = create<AppState>((set, get) => ({
     await storage.importAll(bundle);
     initPromise = null; // force a fresh load of the just-imported data
     await get().init();
+  },
+
+  // TEMPORARY: adds three demo projects (each on a different preset) plus a
+  // spread of entries across their categories. Idempotent — clears any prior
+  // demo projects first so repeat clicks replace rather than stack.
+  async seedDemoData() {
+    await get().clearDemoData();
+    const existing = get().projects;
+    let order = Math.max(-1, ...existing.map((p) => p.order));
+    const newProjects: Project[] = [];
+    const newConfigs: Record<string, Config> = {};
+    const newEntries: Entry[] = [];
+
+    for (const sp of DEMO_PROJECTS) {
+      const projectId = uid();
+      const project: Project = {
+        id: projectId,
+        name: sp.name,
+        description: sp.description,
+        order: ++order,
+        createdAt: nowIso(),
+        demo: true,
+      };
+      const config = configForPreset(sp.presetId, get().customPresets);
+      await storage.saveProject(project);
+      await storage.saveConfig(projectId, config);
+      newProjects.push(project);
+      newConfigs[projectId] = config;
+
+      for (const se of sp.entries) {
+        const ts = new Date(Date.now() - (se.daysAgo ?? 0) * 86_400_000).toISOString();
+        const entry: Entry = {
+          id: uid(),
+          projectId,
+          type: se.type,
+          createdAt: ts,
+          updatedAt: ts,
+          body: se.body,
+          categoryId: se.categoryId,
+          subHeadingId: se.subHeadingId,
+          attachmentIds: [],
+          link: se.link,
+          relatesTo: se.relatesTo,
+          citation: se.citation,
+        };
+        await storage.saveEntry(entry);
+        newEntries.push(entry);
+      }
+    }
+
+    set({
+      projects: [...existing, ...newProjects],
+      configsByProject: { ...get().configsByProject, ...newConfigs },
+      entries: [...get().entries, ...newEntries],
+    });
+    if (newProjects[0]) await get().switchProject(newProjects[0].id);
+  },
+
+  // TEMPORARY: removes every demo project (and its entries/config/etc). Matches
+  // the demo flag or the "Demo — " name prefix so older seed runs are caught too.
+  async clearDemoData() {
+    const isDemo = (p: Project) => p.demo || p.name.startsWith('Demo — ');
+    const demoIds = new Set(get().projects.filter(isDemo).map((p) => p.id));
+    if (demoIds.size === 0) return;
+
+    for (const id of demoIds) {
+      const target = get().projects.find((p) => p.id === id);
+      if (target?.coverAttachmentId) await storage.deleteAttachment(target.coverAttachmentId);
+      await storage.deleteProject(id);
+    }
+
+    const remaining = get().projects.filter((p) => !demoIds.has(p.id)).sort((a, b) => a.order - b.order);
+    const configsByProject = { ...get().configsByProject };
+    for (const id of demoIds) delete configsByProject[id];
+    const entries = get().entries.filter((e) => !demoIds.has(e.projectId));
+    const todos = get().todos.filter((t) => !demoIds.has(t.projectId));
+    const events = get().events.filter((e) => !demoIds.has(e.projectId));
+
+    let activeProjectId = get().activeProjectId;
+    let config = get().config;
+    if (demoIds.has(activeProjectId)) {
+      activeProjectId = (remaining.find((p) => !p.archived) ?? remaining[0]).id;
+      config = configsByProject[activeProjectId];
+      await storage.setActiveProjectId(activeProjectId);
+    }
+    set({ projects: remaining, configsByProject, entries, todos, events, activeProjectId, config });
   },
 }));

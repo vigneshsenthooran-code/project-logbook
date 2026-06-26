@@ -71,6 +71,7 @@ export interface Project {
   startDate?: string; // ISO date (YYYY-MM-DD)
   archived?: boolean;
   createdAt?: string; // ISO
+  demo?: boolean; // TEMPORARY: marks a project seeded by the demo button
 }
 
 /** A user-saved, reusable category set — appears in the preset picker for every project. */

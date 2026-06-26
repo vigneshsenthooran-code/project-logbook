@@ -163,6 +163,18 @@
   border-top: none;
 }
 
+/* TEMPORARY demo seeder buttons — remove with seedDemo.ts */
+.topbar-demo-tools {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+}
+.topbar-seed-btn {
+  flex: none;
+  white-space: nowrap;
+}
+
 .topbar-tools {
   flex: none;
   display: flex;
