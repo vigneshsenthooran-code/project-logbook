@@ -8,22 +8,62 @@
   align-items: center;
   justify-content: center;
   gap: var(--s-sm);
+  background: var(--color-surface-soft);
 }
 .boot-mark {
   font-family: var(--font-display);
-  font-size: 24px;
-  font-weight: 800;
+  font-size: 26px;
+  font-weight: 600;
   color: var(--color-ink);
 }
 
 /* ---- Shell ---- */
 .shell {
+  position: relative;
   height: 100%;
+  isolation: isolate;
 }
+
+/* ---- Animated topographic backdrop (behind everything) ---- */
+.contour-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(180, 211, 53, 0.06), transparent 60%),
+    var(--color-surface-soft);
+}
+.contour-bg-svg {
+  position: absolute;
+  top: -10%;
+  left: -10%;
+  width: 120%;
+  height: 120%;
+  color: rgba(233, 237, 218, 0.05);
+  animation: contour-drift 46s ease-in-out infinite alternate;
+}
+@keyframes contour-drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1.02);
+  }
+  to {
+    transform: translate3d(-3%, -2.5%, 0) scale(1.08);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .contour-bg-svg {
+    animation: none;
+  }
+}
+
 .shell-main {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  scroll-snap-type: y proximity;
+  scroll-behavior: smooth;
 }
 
 /* ---- Topbar ---- */
@@ -38,7 +78,8 @@
   position: sticky;
   top: 0;
   z-index: 20;
-  background: var(--color-canvas);
+  background: color-mix(in srgb, var(--color-surface-soft) 82%, transparent);
+  backdrop-filter: blur(12px) saturate(120%);
   border-bottom: 1px solid var(--color-hairline);
 }
 .topbar-inner {
@@ -57,14 +98,18 @@
   flex: none;
 }
 .topbar-mark {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   flex: none;
+  color: var(--color-ink);
+}
+.topbar-brand:hover .topbar-mark {
+  color: var(--color-primary);
 }
 .topbar-brand-name {
   font-family: var(--font-display);
-  font-size: 20px;
-  font-weight: 800;
+  font-size: 22px;
+  font-weight: 600;
   letter-spacing: -0.3px;
   color: var(--color-ink);
 }
@@ -75,20 +120,39 @@
   flex: none;
 }
 .topbar-navlink {
-  padding: 8px 12px;
-  border-radius: var(--r-sm);
+  position: relative;
+  padding: 8px 4px;
+  margin: 0 8px;
+  border-radius: 0;
   text-decoration: none;
-  color: var(--color-body);
-  font-weight: 500;
-  font-size: 14px;
+  color: var(--color-muted);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
   white-space: nowrap;
+  transition: color 140ms ease;
+}
+.topbar-navlink::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 2px;
+  background: var(--color-primary);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 180ms ease;
 }
 .topbar-navlink:hover {
-  background: var(--color-surface-soft);
+  color: var(--color-ink);
 }
 .topbar-navlink.active {
-  background: var(--color-primary-pale);
-  color: var(--color-ink-deep);
+  color: var(--color-ink);
+}
+.topbar-navlink.active::after {
+  transform: scaleX(1);
 }
 .topbar-search {
   position: relative;
@@ -225,7 +289,6 @@
 }
 
 /* ---- Views ---- */
-.dashboard,
 .browse,
 .settings {
   max-width: 1280px;
@@ -240,6 +303,100 @@
   align-items: baseline;
   justify-content: space-between;
   margin-bottom: var(--s-base);
+}
+
+/* ---- Hero (home only) ---- */
+.dashboard {
+  width: 100%;
+}
+.hero {
+  position: relative;
+  min-height: calc(100vh - 65px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--s-section) var(--s-lg);
+  scroll-snap-align: start;
+}
+.hero-inner {
+  max-width: 1100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-base);
+}
+.hero-mark {
+  color: var(--color-ink);
+  opacity: 0.85;
+}
+.hero-eyebrow {
+  color: var(--color-muted);
+}
+.hero-title {
+  font-family: var(--font);
+  font-weight: 900;
+  font-size: clamp(48px, 11vw, 132px);
+  line-height: 0.92;
+  letter-spacing: -2px;
+  text-transform: uppercase;
+  color: var(--color-ink);
+  margin: var(--s-xs) 0 var(--s-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hero-line {
+  display: block;
+}
+.hero-title .serif-accent {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: -1px;
+  /* serif descenders need a touch more room */
+  padding-right: 0.06em;
+}
+.hero-scroll {
+  margin-top: var(--s-lg);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  transition: color 140ms ease;
+}
+.hero-scroll:hover {
+  color: var(--color-primary);
+}
+.hero-scroll-arrow {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--r-full);
+  animation: hero-bob 1.8s ease-in-out infinite;
+}
+@keyframes hero-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-scroll-arrow {
+    animation: none;
+  }
+}
+
+.dashboard-body {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: var(--s-xl) var(--s-xl) var(--s-section);
+  scroll-snap-align: start;
 }
 
 .dashboard-grid {
@@ -263,8 +420,6 @@
 /* ---- Composer ---- */
 .composer {
   padding: var(--s-base);
-  box-shadow: var(--shadow-1);
-  border: none;
 }
 .composer-tabs {
   display: flex;
@@ -284,12 +439,12 @@
   background: var(--color-surface-soft);
 }
 .composer-tab.is-active {
-  background: var(--color-ink);
-  color: var(--color-on-dark);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
 }
 .composer-field {
   width: 100%;
-  background: var(--color-canvas);
+  background: var(--color-surface-soft);
   border: 1px solid var(--color-hairline);
   border-radius: var(--r-md);
   padding: var(--s-sm) var(--s-md);
@@ -298,8 +453,8 @@
   gap: var(--s-sm);
 }
 .composer-field:focus-within {
-  border: 2px solid var(--color-ink);
-  padding: calc(var(--s-sm) - 1px) calc(var(--s-md) - 1px);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(180, 211, 53, 0.18);
 }
 .composer-textarea {
   width: 100%;
@@ -371,9 +526,9 @@
   width: 20px;
   height: 20px;
   border-radius: var(--r-full);
-  border: none;
-  background: var(--color-ink);
-  color: var(--color-on-dark);
+  border: 1px solid var(--color-hairline);
+  background: var(--color-card-strong);
+  color: var(--color-ink);
   font-size: 11px;
   line-height: 1;
   display: flex;
@@ -423,16 +578,110 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: var(--s-base);
+  /* hug content so the notch label sits right under the text instead of
+     floating below a stretched, half-empty card */
+  align-items: start;
 }
-.entry-card {
+/* ---- Corner-cutout card (shared by entry cards + project tiles) ----
+   A near-black surface with the bottom-right corner replaced by a traced
+   chamfer: a flat ledge, then a curve-straight-curve diagonal slope down to
+   the bottom edge (sourced from landonorris.com's helmet-card mask SVG,
+   viewBox 0 0 407 411 — cropped here to just the corner detail at
+   `200 360 207 51`). A label floats in that negative space. --mw/--mh size
+   the corner crop (kept at its native ~4:1 aspect so the chamfer angle isn't
+   stretched); --nw/--nh size the label box nested inside it. All four are
+   set on the parent so the mask and the label stay in sync. */
+.card-cutout {
+  --corner-svg: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='200 360 207 51'%3E%3Cpath d='M0 8C0 3.58173 3.58172 0 8 0H398.89C403.308 0 406.89 3.58172 406.89 8V364.983C406.89 369.401 403.308 372.983 398.89 372.983H263.329C256.329 372.983 249.709 376.171 245.345 381.644L228.846 402.338C224.482 407.812 217.863 411 210.862 411H8C3.58173 411 0 407.418 0 403V8Z' fill='black'/%3E%3C/svg%3E");
+  -webkit-mask:
+    linear-gradient(#000 0 0) left top / 100% calc(100% - var(--mh, 32px)) no-repeat,
+    linear-gradient(#000 0 0) left bottom / calc(100% - var(--mw, 130px)) 100% no-repeat,
+    var(--corner-svg) right bottom / var(--mw, 130px) var(--mh, 32px) no-repeat;
+  mask:
+    linear-gradient(#000 0 0) left top / 100% calc(100% - var(--mh, 32px)) no-repeat,
+    linear-gradient(#000 0 0) left bottom / calc(100% - var(--mw, 130px)) 100% no-repeat,
+    var(--corner-svg) right bottom / var(--mw, 130px) var(--mh, 32px) no-repeat;
+}
+.card-notch-label {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: var(--nw, 130px);
+  height: var(--nh, 44px);
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 0 6px 2px 12px;
+  text-align: right;
+  background: transparent;
+  border: none;
+}
+.card-notch-title {
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.04;
+  color: var(--color-ink);
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.card-notch-year {
+  flex-shrink: 0;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+.entry-card {
+  --mw: 187px;
+  --mh: 46px;
+  --nw: 92px;
+  --nh: 36px;
+  position: relative;
   cursor: pointer;
-  transition: box-shadow 120ms ease, transform 120ms ease;
+}
+.entry-card-surface {
   display: flex;
   flex-direction: column;
+  background: var(--color-card);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 160ms ease;
 }
-.entry-card:hover {
-  box-shadow: var(--shadow-1);
+/* The white border is a 4-direction drop-shadow outline drawn on this UNMASKED
+   wrapper, using the masked surface inside it as the alpha source — so the
+   outline traces the full notched silhouette and isn't clipped (the mask on
+   .entry-card-surface would otherwise cut off any outset border on the surface
+   itself). Thickness is driven by --card-bw; keep the four offsets equal so the
+   line stays the same weight on every edge. */
+.entry-card-outline {
+  --card-bw: 1px;
+  --card-border-c: var(--color-card-border);
+  transition: filter 160ms ease;
+  filter:
+    drop-shadow(var(--card-bw) 0 0 var(--card-border-c))
+    drop-shadow(calc(-1 * var(--card-bw)) 0 0 var(--card-border-c))
+    drop-shadow(0 var(--card-bw) 0 var(--card-border-c))
+    drop-shadow(0 calc(-1 * var(--card-bw)) 0 var(--card-border-c));
+}
+.entry-card:hover .entry-card-surface {
+  transform: translateY(-3px);
+}
+.entry-card:hover .entry-card-outline {
+  --card-border-c: #fff;
+  filter:
+    drop-shadow(var(--card-bw) 0 0 var(--card-border-c))
+    drop-shadow(calc(-1 * var(--card-bw)) 0 0 var(--card-border-c))
+    drop-shadow(0 var(--card-bw) 0 var(--card-border-c))
+    drop-shadow(0 calc(-1 * var(--card-bw)) 0 var(--card-border-c))
+    drop-shadow(0 12px 18px rgba(0, 0, 0, 0.5));
 }
 .entry-media {
   position: relative;
@@ -482,9 +731,12 @@
 }
 .entry-card-body {
   padding: var(--s-md);
+  /* leave clearance so content never lands in the masked-out notch */
+  padding-bottom: calc(var(--nh, 42px) + var(--s-xs));
   display: flex;
   flex-direction: column;
   gap: var(--s-sm);
+  flex: 1;
 }
 .entry-card-tags {
   display: flex;
@@ -542,7 +794,7 @@
 }
 .empty-mark {
   font-size: 32px;
-  color: var(--color-hairline);
+  color: var(--color-muted-soft);
 }
 
 /* ---- Entry detail modal ---- */
@@ -703,21 +955,28 @@
   align-items: center;
   gap: var(--s-xs);
   border: 1px solid var(--color-hairline);
-  background: var(--color-canvas);
+  background: var(--color-surface-soft);
+  color: var(--color-body);
   border-radius: var(--r-full);
   padding: 8px 14px;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
+  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
+}
+.confirm-chip:hover,
+.filter-chip:hover {
+  border-color: var(--color-hairline);
+  color: var(--color-ink);
 }
 .confirm-chip.is-active,
 .filter-chip.is-active {
-  border-color: var(--color-ink);
-  background: var(--color-ink);
-  color: var(--color-on-dark);
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
 }
 .confirm-chip.is-active .tag-dot,
 .filter-chip.is-active .tag-dot {
-  outline: 1px solid var(--color-on-dark);
+  outline: 1px solid var(--color-on-primary);
 }
 
 /* ---- Filter bar ---- */
@@ -806,12 +1065,13 @@
   visibility: hidden;
 }
 .cal-cell.is-today {
-  font-weight: 700;
-  color: var(--color-positive-deep);
+  font-weight: 800;
+  color: var(--color-primary);
 }
 .cal-cell.is-selected {
-  background: var(--color-ink);
-  color: var(--color-on-dark);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: 700;
 }
 .cal-dot {
   position: absolute;
@@ -819,10 +1079,10 @@
   width: 4px;
   height: 4px;
   border-radius: var(--r-full);
-  background: var(--color-positive);
+  background: var(--color-primary);
 }
 .cal-cell.is-selected .cal-dot {
-  background: var(--color-on-dark);
+  background: var(--color-on-primary);
 }
 .cal-events {
   margin-top: var(--s-md);
@@ -1067,8 +1327,9 @@
   display: flex;
   align-items: center;
   gap: 2px;
-  background: var(--color-ink);
-  color: var(--color-on-dark);
+  background: var(--color-card-strong);
+  color: var(--color-ink);
+  border: 1px solid var(--color-hairline);
   border-radius: var(--r-full);
   box-shadow: var(--shadow-1);
   padding: 4px;
@@ -1079,7 +1340,7 @@
   border: none;
   background: transparent;
   border-radius: var(--r-full);
-  color: var(--color-on-dark);
+  color: var(--color-ink);
   font-size: 16px;
   line-height: 1;
   display: flex;
@@ -1087,7 +1348,7 @@
   justify-content: center;
 }
 .projectbar-arrow:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(233, 237, 218, 0.12);
 }
 .projectbar-arrow:disabled {
   opacity: 0.35;
@@ -1095,8 +1356,8 @@
 .projectbar-name {
   border: none;
   background: transparent;
-  color: var(--color-on-dark);
-  font-weight: 600;
+  color: var(--color-ink);
+  font-weight: 700;
   font-size: 14px;
   padding: 0 var(--s-md);
   height: 32px;
@@ -1108,7 +1369,7 @@
 }
 .projectbar-name:hover,
 .projectbar-name.is-open {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(233, 237, 218, 0.12);
 }
 .projectbar-panel {
   width: 260px;
@@ -1207,25 +1468,54 @@
   gap: var(--s-base);
 }
 .project-tile {
-  overflow: hidden;
+  --mw: 203px;
+  --mh: 50px;
+  --nw: 118px;
+  --nh: 36px;
+  position: relative;
   display: flex;
   flex-direction: column;
   padding: 0;
-  transition: box-shadow 150ms ease, transform 150ms ease;
+  background: var(--color-card);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: filter 160ms ease, transform 160ms ease;
+  /* see .entry-card-outline for why this is a drop-shadow outline, not a border */
+  --card-bw: 1px;
+  --card-border-c: var(--color-card-border);
+  filter:
+    drop-shadow(var(--card-bw) 0 0 var(--card-border-c))
+    drop-shadow(calc(-1 * var(--card-bw)) 0 0 var(--card-border-c))
+    drop-shadow(0 var(--card-bw) 0 var(--card-border-c))
+    drop-shadow(0 calc(-1 * var(--card-bw)) 0 var(--card-border-c));
 }
 .project-tile:hover {
-  box-shadow: var(--shadow-1);
-  transform: translateY(-2px);
+  transform: translateY(-3px);
+  --card-border-c: #fff;
+  filter:
+    drop-shadow(var(--card-bw) 0 0 var(--card-border-c))
+    drop-shadow(calc(-1 * var(--card-bw)) 0 0 var(--card-border-c))
+    drop-shadow(0 var(--card-bw) 0 var(--card-border-c))
+    drop-shadow(0 calc(-1 * var(--card-bw)) 0 var(--card-border-c))
+    drop-shadow(0 12px 18px rgba(0, 0, 0, 0.5));
 }
 .project-tile.is-active {
-  outline: 1px solid var(--color-primary);
-  border-color: var(--color-primary);
+  --card-border-c: var(--color-primary);
+  filter:
+    drop-shadow(var(--card-bw) 0 0 var(--card-border-c))
+    drop-shadow(calc(-1 * var(--card-bw)) 0 0 var(--card-border-c))
+    drop-shadow(0 var(--card-bw) 0 var(--card-border-c))
+    drop-shadow(0 calc(-1 * var(--card-bw)) 0 var(--card-border-c));
 }
 .project-tile.is-archived {
-  opacity: 0.65;
+  opacity: 0.6;
+}
+.project-tile-cover-wrap {
+  position: relative;
 }
 .project-tile-cover {
   position: relative;
+  width: 100%;
   aspect-ratio: 16 / 9;
   border: none;
   padding: 0;
@@ -1235,6 +1525,13 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
+}
+.project-tile-notch {
+  cursor: pointer;
+  transition: color 140ms ease;
+}
+.project-tile-notch:hover .card-notch-title {
+  color: var(--color-primary);
 }
 .project-tile-cover img {
   width: 100%;
@@ -1394,11 +1691,17 @@
 }
 
 @media (max-width: 744px) {
-  .dashboard,
+  .dashboard-body,
   .browse,
   .settings {
     padding: var(--s-xl) var(--s-base);
     padding-bottom: 96px;
+  }
+  .hero {
+    min-height: calc(100vh - 120px);
+  }
+  .hero-title {
+    letter-spacing: -1px;
   }
   .dashboard-rail {
     flex-direction: column;

@@ -4,12 +4,8 @@ import { useStore } from '../store';
 import { categoryName } from '../lib/categories';
 import { isImageMime, isPdfMime, isTextMime } from '../lib/file';
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+function formatDayMonth(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
 export default function EntryCard({
@@ -51,7 +47,9 @@ export default function EntryCard({
   }, [entry, getAttachment]);
 
   return (
-    <article className="entry-card card" onClick={() => onView(entry)}>
+    <article className="entry-card" onClick={() => onView(entry)}>
+      <div className="entry-card-outline">
+      <div className="entry-card-surface card-cutout">
       {entry.type === 'image' && (
         <div className="entry-media">
           {thumbUrl ? <img src={thumbUrl} alt={entry.body || 'image'} /> : <div className="entry-media-ph" />}
@@ -116,10 +114,13 @@ export default function EntryCard({
         )}
 
         {entry.citation && <p className="entry-citation t-caption-sm">“{entry.citation}”</p>}
+      </div>
+      </div>
+      </div>
 
-        <div className="entry-card-foot">
-          <span className="t-caption-sm muted">{formatDate(entry.createdAt)}</span>
-        </div>
+      <div className="card-notch-label">
+        <span className="card-notch-title">{formatDayMonth(entry.createdAt)}</span>
+        <span className="card-notch-year">{new Date(entry.createdAt).getFullYear()}</span>
       </div>
     </article>
   );

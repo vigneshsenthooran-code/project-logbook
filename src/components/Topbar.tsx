@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useStore } from '../store';
+import DecorMark from './DecorMark';
 
 export default function Topbar() {
   const navigate = useNavigate();
@@ -47,13 +48,7 @@ export default function Topbar() {
     <header className="topbar">
       <div className="topbar-inner">
         <Link to="/" className="topbar-brand">
-          <svg className="topbar-mark" viewBox="0 0 36 36" fill="none" aria-hidden>
-            <rect x="10" y="10" width="21" height="22" rx="6" fill="#ffffff" stroke="#5ea33d" strokeWidth="2" />
-            <rect x="5" y="5" width="24" height="24" rx="6" fill="var(--color-primary)" stroke="#4f8f33" strokeWidth="2.2" />
-            <rect x="10.5" y="12.6" width="13" height="2.6" rx="1.3" fill="#4f8f33" />
-            <rect x="10.5" y="17.3" width="13" height="2.6" rx="1.3" fill="#4f8f33" />
-            <rect x="10.5" y="22" width="8" height="2.6" rx="1.3" fill="#4f8f33" />
-          </svg>
+          <DecorMark className="topbar-mark" size={30} />
           <span className="topbar-brand-name">Quire</span>
         </Link>
 
