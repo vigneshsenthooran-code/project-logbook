@@ -85,6 +85,8 @@ interface AppState {
   // export / import
   exportBundle: () => Promise<LogbookBundle>;
   importBundle: (bundle: LogbookBundle) => Promise<void>;
+  /** Wipes every project, entry and preset, then re-seeds a fresh default project. */
+  resetAll: () => Promise<void>;
 
   // TEMPORARY demo helpers — seed / remove extra showcase projects + entries.
   seedDemoData: () => Promise<void>;
@@ -436,6 +438,13 @@ export const useStore = create<AppState>((set, get) => ({
   async importBundle(bundle) {
     await storage.importAll(bundle);
     initPromise = null; // force a fresh load of the just-imported data
+    await get().init();
+  },
+
+  async resetAll() {
+    for (const p of get().projects) await storage.deleteProject(p.id);
+    for (const cp of get().customPresets) await storage.deleteCustomPreset(cp.id);
+    initPromise = null; // init() will recreate a fresh default project
     await get().init();
   },
 

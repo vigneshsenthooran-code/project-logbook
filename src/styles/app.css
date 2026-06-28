@@ -435,6 +435,7 @@
   box-shadow: var(--shadow-1);
 }
 .entry-media {
+  position: relative;
   aspect-ratio: 16 / 10;
   background: var(--color-surface-strong);
   overflow: hidden;
@@ -455,8 +456,13 @@
   font-size: 14px;
 }
 .entry-media-frame {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* Oversize so the embedded PDF viewer's scrollbars fall outside the
+     clipped container and stay hidden. */
+  width: calc(100% + 24px);
+  height: calc(100% + 24px);
   border: none;
   pointer-events: none;
 }
@@ -586,18 +592,20 @@
   display: block;
 }
 .entry-detail-media-file {
+  position: relative;
   height: 70vh;
   max-height: 70vh;
   align-items: stretch;
-  overflow: auto;
-  scrollbar-width: none;
-}
-.entry-detail-media-file::-webkit-scrollbar {
-  display: none;
+  overflow: hidden;
 }
 .entry-detail-media-frame {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* Oversize so the embedded PDF viewer's scrollbars fall outside the
+     clipped container and stay hidden (wheel scrolling still works). */
+  width: calc(100% + 24px);
+  height: calc(100% + 24px);
   border: none;
 }
 .entry-detail-media-text {
@@ -1413,5 +1421,160 @@
   .topbar-tool {
     min-width: 44px;
     padding: 6px var(--s-sm) 7px;
+  }
+}
+
+/* ---- Project detail page ---- */
+.project-page-head {
+  display: flex;
+  gap: var(--s-lg);
+  padding: var(--s-lg);
+  margin-bottom: var(--s-lg);
+  align-items: center;
+}
+.project-page-cover {
+  flex: none;
+  width: 120px;
+  height: 120px;
+  border-radius: var(--r-lg);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.project-page-cover-mark {
+  font-family: var(--font-display);
+  font-size: 44px;
+  font-weight: 800;
+  color: var(--color-on-dark);
+}
+.project-page-head-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xs);
+}
+.project-page-meta {
+  display: flex;
+  gap: var(--s-base);
+  flex-wrap: wrap;
+}
+.project-page-actions {
+  margin-top: var(--s-sm);
+}
+
+/* ---- Search results ---- */
+.search-group {
+  margin-top: var(--s-xl);
+}
+
+/* ---- Wide modal + sections (project edit) ---- */
+.modal-wide {
+  max-width: 760px;
+}
+.modal-section {
+  border-top: 1px solid var(--color-hairline-soft);
+  padding-top: var(--s-base);
+}
+.modal-section > .t-title {
+  margin-bottom: var(--s-xxs);
+}
+
+/* ---- Settings: rows, actions, segmented, accents ---- */
+.settings-rows {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-hairline-soft);
+  border-radius: var(--r-md);
+  margin: var(--s-md) 0;
+  overflow: hidden;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-base);
+  padding: var(--s-md) var(--s-base);
+}
+.settings-row + .settings-row {
+  border-top: 1px solid var(--color-hairline-soft);
+}
+.settings-row-label {
+  color: var(--color-muted);
+  font-size: 14px;
+}
+.settings-row-value {
+  color: var(--color-ink);
+  font-weight: 600;
+  font-size: 14px;
+  text-align: right;
+}
+.settings-actions {
+  display: flex;
+  gap: var(--s-sm);
+  flex-wrap: wrap;
+  margin-top: var(--s-md);
+}
+.settings-danger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-base);
+  margin-top: var(--s-base);
+  padding: var(--s-base);
+  border: 1px solid var(--color-negative);
+  border-radius: var(--r-md);
+  flex-wrap: wrap;
+}
+
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--color-surface-soft);
+  border-radius: var(--r-md);
+  width: fit-content;
+}
+.segmented-btn {
+  border: none;
+  background: transparent;
+  color: var(--color-body);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 7px 18px;
+  border-radius: var(--r-sm);
+}
+.segmented-btn:hover {
+  color: var(--color-ink);
+}
+.segmented-btn.is-active {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-1);
+}
+
+.accent-swatches {
+  display: flex;
+  gap: var(--s-sm);
+  flex-wrap: wrap;
+}
+.accent-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-full);
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+.accent-swatch.is-active {
+  border-color: var(--color-ink);
+  box-shadow: 0 0 0 2px var(--color-canvas) inset;
+}
+
+@media (max-width: 640px) {
+  .project-page-head {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

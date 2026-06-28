@@ -78,6 +78,38 @@
   --cat-6: #4b5bd6;
   --cat-7: #7a4dd6;
   --cat-8: #d03238;
+
+  color-scheme: light;
+}
+
+/* ---- Dark theme ---- applied via data-theme="dark" on <html> (see lib/theme.ts) */
+:root[data-theme='dark'] {
+  --color-primary: #9fe870;
+  --color-primary-active: #b6f08e;
+  --color-primary-neutral: #6fae4a;
+  --color-primary-pale: #2b3a1d;
+  --color-primary-disabled: #34402a;
+
+  --color-canvas: #23261f;
+  --color-surface-soft: #181a15;
+  --color-surface-strong: #2f3329;
+
+  --color-hairline: rgba(255, 255, 255, 0.14);
+  --color-hairline-soft: rgba(255, 255, 255, 0.08);
+  --color-border-strong: #f2f4ee;
+
+  --color-ink: #f2f4ee;
+  --color-ink-deep: #cdffad;
+  --color-body: #c3c7bc;
+  --color-muted: #9aa091;
+  --color-muted-soft: #7b8073;
+  --color-on-primary: #0e0f0c;
+  --color-on-dark: #ffffff;
+
+  --shadow-1: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 2px 10px rgba(0, 0, 0, 0.45);
+  --scrim: rgba(0, 0, 0, 0.62);
+
+  color-scheme: dark;
 }
 
 * {

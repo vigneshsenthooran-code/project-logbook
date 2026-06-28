@@ -12,11 +12,11 @@ export default function Topbar() {
   const [seeding, setSeeding] = useState(false);
   const [clearing, setClearing] = useState(false);
 
-  const [query, setQuery] = useState(() => (location.pathname === '/browse' ? params.get('q') ?? '' : ''));
+  const [query, setQuery] = useState(() => (location.pathname === '/search' ? params.get('q') ?? '' : ''));
 
   function submitSearch() {
     const q = query.trim();
-    navigate(q ? `/browse?q=${encodeURIComponent(q)}` : '/browse');
+    navigate(q ? `/search?q=${encodeURIComponent(q)}` : '/search');
   }
 
   async function handleSeedDemo() {
@@ -60,9 +60,6 @@ export default function Topbar() {
         <nav className="topbar-nav">
           <NavLink to="/" end className="topbar-navlink">
             Dashboard
-          </NavLink>
-          <NavLink to="/browse" className="topbar-navlink">
-            Browse
           </NavLink>
           <NavLink to="/projects" className="topbar-navlink">
             Projects

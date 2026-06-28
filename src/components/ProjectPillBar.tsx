@@ -31,7 +31,7 @@ export default function ProjectPillBar() {
 
   function goToCategory(catId: string) {
     setExpanded(false);
-    navigate(`/browse?cat=${encodeURIComponent(catId)}`);
+    navigate(`/projects/${activeProjectId}?cat=${encodeURIComponent(catId)}`);
   }
 
   return (

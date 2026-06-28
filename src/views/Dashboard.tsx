@@ -26,7 +26,7 @@ export default function Dashboard() {
           <div className="dashboard-recent">
             <div className="section-head">
               <h2 className="t-display-sm">Recent</h2>
-              <Link to="/browse" className="t-caption-sm">
+              <Link to={`/projects/${activeProjectId}`} className="t-caption-sm">
                 Browse all →
               </Link>
             </div>

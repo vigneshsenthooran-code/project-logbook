@@ -75,7 +75,7 @@ export default function EntryCard({
           ) : thumbMime && isTextMime(thumbMime) && thumbText !== null ? (
             <pre className="entry-media-text">{thumbText}</pre>
           ) : thumbUrl && thumbMime && isPdfMime(thumbMime) ? (
-            <iframe className="entry-media-frame" src={thumbUrl} title={thumbName ?? entry.body ?? 'file preview'} tabIndex={-1} />
+            <iframe className="entry-media-frame" src={`${thumbUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`} title={thumbName ?? entry.body ?? 'file preview'} tabIndex={-1} />
           ) : (
             <div className="entry-media-ph">📄</div>
           )}

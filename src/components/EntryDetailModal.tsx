@@ -91,7 +91,7 @@ export default function EntryDetailModal({
 
         {entry.type === 'file' && mediaUrl && fileMime && isPdfMime(fileMime) && (
           <div className="entry-detail-media entry-detail-media-file">
-            <iframe className="entry-detail-media-frame" src={mediaUrl} title={fileName ?? entry.body ?? 'file preview'} />
+            <iframe className="entry-detail-media-frame" src={`${mediaUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`} title={fileName ?? entry.body ?? 'file preview'} />
           </div>
         )}
 

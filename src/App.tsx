@@ -3,8 +3,9 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { useStore, setActiveStorage } from './store';
 import AppShell from './components/AppShell';
 import Dashboard from './views/Dashboard';
-import Browse from './views/Browse';
 import Projects from './views/Projects';
+import ProjectDetail from './views/ProjectDetail';
+import SearchResults from './views/SearchResults';
 import Settings from './views/Settings';
 import AuthScreen from './views/AuthScreen';
 import { getStorageMode } from './storage/mode';
@@ -63,8 +64,9 @@ export default function App() {
     <AppShell>
       <Routes>
         <Route path="/" element={<Dashboard />} />
-        <Route path="/browse" element={<Browse />} />
+        <Route path="/search" element={<SearchResults />} />
         <Route path="/projects" element={<Projects />} />
+        <Route path="/projects/:id" element={<ProjectDetail />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
