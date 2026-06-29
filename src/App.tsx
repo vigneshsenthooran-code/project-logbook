@@ -8,6 +8,7 @@ import ProjectDetail from './views/ProjectDetail';
 import SearchResults from './views/SearchResults';
 import Settings from './views/Settings';
 import AuthScreen from './views/AuthScreen';
+import LoadingScreen from './components/LoadingScreen';
 import { getStorageMode } from './storage/mode';
 import { supabase } from './lib/supabaseClient';
 import { supabaseAdapter } from './storage/supabaseAdapter';
@@ -17,6 +18,12 @@ export default function App() {
   const init = useStore((s) => s.init);
   const [authChecked, setAuthChecked] = useState(false);
   const [needsAuth, setNeedsAuth] = useState(false);
+  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setMinTimeElapsed(true), 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -40,6 +47,10 @@ export default function App() {
     })();
   }, [init]);
 
+  if (!minTimeElapsed || !authChecked || (!needsAuth && !ready)) {
+    return <LoadingScreen />;
+  }
+
   if (needsAuth) {
     return (
       <AuthScreen
@@ -48,15 +59,6 @@ export default function App() {
           void init();
         }}
       />
-    );
-  }
-
-  if (!authChecked || !ready) {
-    return (
-      <div className="boot">
-        <div className="boot-mark">Quire</div>
-        <div className="muted t-body-sm">Opening your logbook…</div>
-      </div>
     );
   }
 

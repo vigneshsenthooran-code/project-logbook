@@ -305,90 +305,64 @@
   margin-bottom: var(--s-base);
 }
 
-/* ---- Hero (home only) ---- */
 .dashboard {
   width: 100%;
 }
-.hero {
-  position: relative;
-  min-height: calc(100vh - 65px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: var(--s-section) var(--s-lg);
-  scroll-snap-align: start;
-}
-.hero-inner {
-  max-width: 1100px;
+
+/* ---- Loading screen (app boot) ---- */
+.loading-screen {
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  text-align: center;
   gap: var(--s-base);
+  padding: var(--s-section) var(--s-lg);
+  background: var(--color-surface-soft);
 }
-.hero-mark {
-  color: var(--color-ink);
-  opacity: 0.85;
+.loading-mark {
+  display: block;
 }
-.hero-eyebrow {
-  color: var(--color-muted);
+.loading-stroke {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-width: 2.5;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: loading-draw 1.5s ease forwards;
 }
-.hero-title {
+@keyframes loading-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.loading-title {
   font-family: var(--font);
   font-weight: 900;
-  font-size: clamp(48px, 11vw, 132px);
+  font-size: clamp(40px, 9vw, 110px);
   line-height: 0.92;
   letter-spacing: -2px;
   text-transform: uppercase;
   color: var(--color-ink);
-  margin: var(--s-xs) 0 var(--s-sm);
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.hero-line {
+.loading-line {
   display: block;
 }
-.hero-title .serif-accent {
+.loading-title .serif-accent {
   font-weight: 500;
   text-transform: none;
   letter-spacing: -1px;
   /* serif descenders need a touch more room */
   padding-right: 0.06em;
 }
-.hero-scroll {
-  margin-top: var(--s-lg);
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  text-decoration: none;
-  color: var(--color-muted);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 1.6px;
-  text-transform: uppercase;
-  transition: color 140ms ease;
-}
-.hero-scroll:hover {
-  color: var(--color-primary);
-}
-.hero-scroll-arrow {
-  display: inline-flex;
-  width: 30px;
-  height: 30px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--color-hairline);
-  border-radius: var(--r-full);
-  animation: hero-bob 1.8s ease-in-out infinite;
-}
-@keyframes hero-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(4px); }
-}
 @media (prefers-reduced-motion: reduce) {
-  .hero-scroll-arrow {
-    animation: none;
+  .loading-stroke {
+    animation-duration: 0.01ms;
   }
 }
 
@@ -606,15 +580,16 @@
   position: absolute;
   right: 0;
   bottom: 0;
-  width: var(--nw, 130px);
-  height: var(--nh, 44px);
+  width: var(--mw, 130px);
+  height: var(--mh, 44px);
   display: flex;
   flex-direction: row;
-  align-items: baseline;
-  justify-content: flex-end;
+  align-items: flex-start;
+  justify-content: flex-start;
   gap: 4px;
-  padding: 0 6px 2px 12px;
-  text-align: right;
+  /* top-left corner of the text sits at (100px, 25px) inside this box */
+  padding: 25px 0 0 100px;
+  text-align: left;
   background: transparent;
   border: none;
 }
@@ -731,8 +706,9 @@
 }
 .entry-card-body {
   padding: var(--s-md);
-  /* leave clearance so content never lands in the masked-out notch */
-  padding-bottom: calc(var(--nh, 42px) + var(--s-xs));
+  /* leave clearance so content never lands in the masked-out notch — the
+     cutout's flat ledge is --mh tall (not --nh, which is just the label box) */
+  padding-bottom: calc(var(--mh, 46px) + var(--s-xs));
   display: flex;
   flex-direction: column;
   gap: var(--s-sm);
@@ -1697,10 +1673,7 @@
     padding: var(--s-xl) var(--s-base);
     padding-bottom: 96px;
   }
-  .hero {
-    min-height: calc(100vh - 120px);
-  }
-  .hero-title {
+  .loading-title {
     letter-spacing: -1px;
   }
   .dashboard-rail {
