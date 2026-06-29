@@ -3,6 +3,7 @@ import type { Category, Entry } from '../types';
 import EntryCard from './EntryCard';
 import EntryDetailModal from './EntryDetailModal';
 import EntryEditModal from './EntryEditModal';
+import Masonry from './Masonry';
 
 export default function EntryGrid({
   entries,
@@ -27,11 +28,15 @@ export default function EntryGrid({
 
   return (
     <>
-      <div className="entry-grid">
-        {entries.map((e) => (
-          <EntryCard key={e.id} entry={e} categories={categories} onView={setViewing} />
-        ))}
-      </div>
+      <Masonry
+        className="entry-grid"
+        minColumnWidth={240}
+        gap={16}
+        items={entries.map((e) => ({
+          key: e.id,
+          node: <EntryCard entry={e} categories={categories} onView={setViewing} />,
+        }))}
+      />
       {viewing && (
         <EntryDetailModal
           entry={viewing}

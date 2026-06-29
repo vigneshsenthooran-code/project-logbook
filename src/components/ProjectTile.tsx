@@ -58,39 +58,43 @@ export default function ProjectTile({
 
   return (
     <article className={`project-tile ${project.archived ? 'is-archived' : ''} ${isActive ? 'is-active' : ''}`}>
-      <div className="project-tile-cover-wrap">
-        <button className="project-tile-cover card-cutout" onClick={onOpen} style={!coverUrl ? { background: gradient } : undefined}>
-          {coverUrl ? <img src={coverUrl} alt="" /> : <span className="project-tile-cover-mark">{project.name.slice(0, 1).toUpperCase()}</span>}
-          {isActive && <span className="project-tile-badge">Active</span>}
-          {project.archived && <span className="project-tile-badge project-tile-badge-archived">Archived</span>}
-        </button>
-        <button className="card-notch-label project-tile-notch" onClick={onOpen} title="Open project">
-          <span className="card-notch-title">{project.name}</span>
-          <span className="card-notch-year">{entryCount} {entryCount === 1 ? 'entry' : 'entries'}</span>
-        </button>
+      <div className="project-tile-outline">
+        <div className="project-tile-surface card-cutout">
+          <button className="project-tile-cover" onClick={onOpen} style={!coverUrl ? { background: gradient } : undefined}>
+            {coverUrl ? <img src={coverUrl} alt="" /> : <span className="project-tile-cover-mark">{project.name.slice(0, 1).toUpperCase()}</span>}
+            {isActive && <span className="project-tile-badge">Active</span>}
+            {project.archived && <span className="project-tile-badge project-tile-badge-archived">Archived</span>}
+          </button>
+
+          <div className="project-tile-body">
+            <button className="project-tile-name" onClick={onOpen}>{project.name}</button>
+            {project.description && <p className="t-body-sm muted project-tile-desc">{project.description}</p>}
+            <div className="project-tile-meta t-caption-sm muted">
+              {project.startDate && <span>Started {formatDate(project.startDate)}</span>}
+            </div>
+
+            <div className="project-tile-actions">
+              <button className="btn btn-secondary btn-sm" onClick={onEdit}>
+                Edit
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={onExport}>
+                Export
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={onArchiveToggle}>
+                {project.archived ? 'Unarchive' : 'Archive'}
+              </button>
+              <button className="btn btn-ghost btn-sm project-tile-del" onClick={onDelete}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="project-tile-body">
-        {project.description && <p className="t-body-sm muted project-tile-desc">{project.description}</p>}
-        <div className="project-tile-meta t-caption-sm muted">
-          {project.startDate && <span>Started {formatDate(project.startDate)}</span>}
-        </div>
-
-        <div className="project-tile-actions">
-          <button className="btn btn-secondary btn-sm" onClick={onEdit}>
-            Edit
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={onExport}>
-            Export
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={onArchiveToggle}>
-            {project.archived ? 'Unarchive' : 'Archive'}
-          </button>
-          <button className="btn btn-ghost btn-sm project-tile-del" onClick={onDelete}>
-            Delete
-          </button>
-        </div>
-      </div>
+      <button className="card-notch-label project-tile-notch" onClick={onOpen} title="Open project">
+        <span className="card-notch-title">{entryCount}</span>
+        <span className="card-notch-year">{entryCount === 1 ? 'entry' : 'entries'}</span>
+      </button>
     </article>
   );
 }

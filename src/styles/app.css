@@ -548,14 +548,7 @@
 }
 
 /* ---- Entry grid + cards ---- */
-.entry-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: var(--s-base);
-  /* hug content so the notch label sits right under the text instead of
-     floating below a stretched, half-empty card */
-  align-items: start;
-}
+/* .entry-grid layout (columns + gap) is handled by the Masonry component. */
 /* ---- Corner-cutout card (shared by entry cards + project tiles) ----
    A near-black surface with the bottom-right corner replaced by a traced
    chamfer: a flat ledge, then a curve-straight-curve diagonal slope down to
@@ -1438,35 +1431,37 @@
   gap: var(--s-sm);
   flex: none;
 }
-.project-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: var(--s-base);
-}
+/* .project-grid layout (columns + gap) is handled by the Masonry component. */
 .project-tile {
-  --mw: 203px;
-  --mh: 50px;
+  --mw: 187px;
+  --mh: 46px;
   --nw: 118px;
   --nh: 36px;
   position: relative;
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-  background: var(--color-card);
-  border-radius: 14px;
-  overflow: hidden;
-  transition: filter 160ms ease, transform 160ms ease;
+}
+.project-tile-outline {
   /* see .entry-card-outline for why this is a drop-shadow outline, not a border */
   --card-bw: 1px;
   --card-border-c: var(--color-card-border);
+  transition: filter 160ms ease;
   filter:
     drop-shadow(var(--card-bw) 0 0 var(--card-border-c))
     drop-shadow(calc(-1 * var(--card-bw)) 0 0 var(--card-border-c))
     drop-shadow(0 var(--card-bw) 0 var(--card-border-c))
     drop-shadow(0 calc(-1 * var(--card-bw)) 0 var(--card-border-c));
 }
-.project-tile:hover {
+.project-tile-surface {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-card);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: transform 160ms ease;
+}
+.project-tile:hover .project-tile-surface {
   transform: translateY(-3px);
+}
+.project-tile:hover .project-tile-outline {
   --card-border-c: #fff;
   filter:
     drop-shadow(var(--card-bw) 0 0 var(--card-border-c))
@@ -1475,7 +1470,7 @@
     drop-shadow(0 calc(-1 * var(--card-bw)) 0 var(--card-border-c))
     drop-shadow(0 12px 18px rgba(0, 0, 0, 0.5));
 }
-.project-tile.is-active {
+.project-tile.is-active .project-tile-outline {
   --card-border-c: var(--color-primary);
   filter:
     drop-shadow(var(--card-bw) 0 0 var(--card-border-c))
@@ -1485,9 +1480,6 @@
 }
 .project-tile.is-archived {
   opacity: 0.6;
-}
-.project-tile-cover-wrap {
-  position: relative;
 }
 .project-tile-cover {
   position: relative;
@@ -1537,6 +1529,9 @@
 }
 .project-tile-body {
   padding: var(--s-base);
+  /* leave clearance so content never lands in the masked-out notch — the
+     cutout's flat ledge is --mh tall (not --nh, which is just the label box) */
+  padding-bottom: calc(var(--mh, 40px) + var(--s-xs));
   display: flex;
   flex-direction: column;
   gap: var(--s-xs);

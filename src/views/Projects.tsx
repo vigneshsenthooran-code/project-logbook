@@ -6,6 +6,7 @@ import type { ProjectBundle } from '../storage/StorageAdapter';
 import ProjectTile from '../components/ProjectTile';
 import ProjectEditModal from '../components/ProjectEditModal';
 import ProjectCreateModal from '../components/ProjectCreateModal';
+import Masonry from '../components/Masonry';
 
 function slugify(name: string): string {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'project';
@@ -115,21 +116,26 @@ export default function Projects() {
         />
       </header>
 
-      <div className="project-grid">
-        {active.map((p) => (
-          <ProjectTile
-            key={p.id}
-            project={p}
-            isActive={p.id === activeProjectId}
-            entryCount={entryCount(p.id)}
-            onOpen={() => void openProject(p.id)}
-            onEdit={() => void openEdit(p)}
-            onArchiveToggle={() => void handleArchiveToggle(p)}
-            onExport={() => void handleExport(p)}
-            onDelete={() => void handleDelete(p)}
-          />
-        ))}
-      </div>
+      <Masonry
+        className="project-grid"
+        minColumnWidth={260}
+        gap={16}
+        items={active.map((p) => ({
+          key: p.id,
+          node: (
+            <ProjectTile
+              project={p}
+              isActive={p.id === activeProjectId}
+              entryCount={entryCount(p.id)}
+              onOpen={() => void openProject(p.id)}
+              onEdit={() => void openEdit(p)}
+              onArchiveToggle={() => void handleArchiveToggle(p)}
+              onExport={() => void handleExport(p)}
+              onDelete={() => void handleDelete(p)}
+            />
+          ),
+        }))}
+      />
 
       {archived.length > 0 && (
         <div className="projects-archived">
@@ -137,21 +143,26 @@ export default function Projects() {
             {showArchived ? '▾' : '▸'} Archived ({archived.length})
           </button>
           {showArchived && (
-            <div className="project-grid">
-              {archived.map((p) => (
-                <ProjectTile
-                  key={p.id}
-                  project={p}
-                  isActive={false}
-                  entryCount={entryCount(p.id)}
-                  onOpen={() => void openProject(p.id)}
-                  onEdit={() => void openEdit(p)}
-                  onArchiveToggle={() => void handleArchiveToggle(p)}
-                  onExport={() => void handleExport(p)}
-                  onDelete={() => void handleDelete(p)}
-                />
-              ))}
-            </div>
+            <Masonry
+              className="project-grid"
+              minColumnWidth={260}
+              gap={16}
+              items={archived.map((p) => ({
+                key: p.id,
+                node: (
+                  <ProjectTile
+                    project={p}
+                    isActive={false}
+                    entryCount={entryCount(p.id)}
+                    onOpen={() => void openProject(p.id)}
+                    onEdit={() => void openEdit(p)}
+                    onArchiveToggle={() => void handleArchiveToggle(p)}
+                    onExport={() => void handleExport(p)}
+                    onDelete={() => void handleDelete(p)}
+                  />
+                ),
+              }))}
+            />
           )}
         </div>
       )}
