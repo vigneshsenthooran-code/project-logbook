@@ -1,4 +1,4 @@
-import type { Attachment, CalendarEvent, Config, CustomPreset, Entry, Project, Todo } from '../types';
+import type { Attachment, CalendarEvent, Config, CustomPreset, Entry, Folder, Project, Todo } from '../types';
 
 /** A portable snapshot of the whole app (every project), used for export / import. */
 export interface LogbookBundle {
@@ -15,6 +15,8 @@ export interface LogbookBundle {
   attachments: { id: string; entryId: string; name: string; mime: string; dataUrl: string }[];
   /** Global, app-wide custom presets (not scoped to any one project). Absent in older exports. */
   customPresets?: CustomPreset[];
+  /** Project folders shown on the Projects page. Absent in older exports. */
+  folders?: Folder[];
 }
 
 /** A portable snapshot of a single project, used for per-project export / import. */
@@ -66,6 +68,10 @@ export interface StorageAdapter {
   listCustomPresets(): Promise<CustomPreset[]>;
   saveCustomPreset(preset: CustomPreset): Promise<void>;
   deleteCustomPreset(id: string): Promise<void>;
+
+  listFolders(): Promise<Folder[]>;
+  saveFolder(folder: Folder): Promise<void>;
+  deleteFolder(id: string): Promise<void>;
 
   exportAll(): Promise<LogbookBundle>;
   importAll(bundle: LogbookBundle): Promise<void>;

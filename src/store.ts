@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Attachment, CalendarEvent, Category, Config, CustomPreset, Entry, Project, Todo } from './types';
+import type { Attachment, CalendarEvent, Category, Config, CustomPreset, Entry, Folder, Project, Todo } from './types';
 import { INBOX_ID } from './types';
 import { indexedDbAdapter } from './storage/indexedDbAdapter';
 import type { LogbookBundle, ProjectBundle, StorageAdapter } from './storage/StorageAdapter';
@@ -40,6 +40,7 @@ interface AppState {
   todos: Todo[];
   events: CalendarEvent[];
   customPresets: CustomPreset[];
+  folders: Folder[];
 
   init: () => Promise<void>;
 
@@ -47,7 +48,7 @@ interface AppState {
   addProject: (name: string, presetId?: string) => Promise<Project>;
   updateProject: (
     id: string,
-    patch: Partial<Pick<Project, 'name' | 'description' | 'startDate'>>
+    patch: Partial<Pick<Project, 'name' | 'description' | 'startDate' | 'folderId'>>
   ) => Promise<void>;
   setProjectCover: (id: string, file: { name: string; mime: string; blob: Blob }) => Promise<void>;
   removeProjectCover: (id: string) => Promise<void>;
@@ -57,9 +58,16 @@ interface AppState {
   switchProject: (id: string) => Promise<void>;
   exportProject: (id: string) => Promise<ProjectBundle>;
   importProject: (bundle: ProjectBundle) => Promise<Project>;
+  moveProjectToFolder: (id: string, folderId: string | undefined) => Promise<void>;
+
+  // project folders (global, app-wide groupings shown on the Projects page)
+  addFolder: (name: string) => Promise<Folder>;
+  renameFolder: (id: string, name: string) => Promise<void>;
+  deleteFolder: (id: string) => Promise<void>;
 
   // custom presets (global, app-wide)
   addCustomPreset: (name: string, description: string, categories: Category[]) => Promise<CustomPreset>;
+  updateCustomPreset: (id: string, patch: Partial<Pick<CustomPreset, 'name' | 'description' | 'categories'>>) => Promise<void>;
   deleteCustomPreset: (id: string) => Promise<void>;
 
   // entries
@@ -107,11 +115,13 @@ export const useStore = create<AppState>((set, get) => ({
   todos: [],
   events: [],
   customPresets: [],
+  folders: [],
 
   async init() {
     if (initPromise) return initPromise;
     initPromise = (async () => {
       const customPresets = await storage.listCustomPresets();
+      const folders = await storage.listFolders();
 
       let projects = await storage.listProjects();
       if (projects.length === 0) {
@@ -147,6 +157,7 @@ export const useStore = create<AppState>((set, get) => ({
         todos,
         events,
         customPresets,
+        folders,
         ready: true,
       });
     })();
@@ -328,9 +339,57 @@ export const useStore = create<AppState>((set, get) => ({
     return preset;
   },
 
+  async updateCustomPreset(id, patch) {
+    const preset = get().customPresets.find((p) => p.id === id);
+    if (!preset) return;
+    const updated: CustomPreset = {
+      ...preset,
+      ...patch,
+      categories: patch.categories
+        ? patch.categories.filter((c) => c.id !== INBOX_ID).map((c) => ({ ...c, keywords: [...c.keywords] }))
+        : preset.categories,
+    };
+    await storage.saveCustomPreset(updated);
+    set({ customPresets: get().customPresets.map((p) => (p.id === id ? updated : p)) });
+  },
+
   async deleteCustomPreset(id) {
     await storage.deleteCustomPreset(id);
     set({ customPresets: get().customPresets.filter((p) => p.id !== id) });
+  },
+
+  async moveProjectToFolder(id, folderId) {
+    await get().updateProject(id, { folderId });
+  },
+
+  async addFolder(name) {
+    const folders = get().folders;
+    const maxOrder = Math.max(-1, ...folders.map((f) => f.order));
+    const folder: Folder = { id: uid(), name, order: maxOrder + 1, createdAt: nowIso() };
+    await storage.saveFolder(folder);
+    set({ folders: [...folders, folder] });
+    return folder;
+  },
+
+  async renameFolder(id, name) {
+    const folder = get().folders.find((f) => f.id === id);
+    if (!folder) return;
+    const updated = { ...folder, name };
+    await storage.saveFolder(updated);
+    set({ folders: get().folders.map((f) => (f.id === id ? updated : f)) });
+  },
+
+  async deleteFolder(id) {
+    await storage.deleteFolder(id);
+    const affected = get().projects.filter((p) => p.folderId === id);
+    for (const p of affected) {
+      const updated = { ...p, folderId: undefined };
+      await storage.saveProject(updated);
+    }
+    set({
+      folders: get().folders.filter((f) => f.id !== id),
+      projects: get().projects.map((p) => (p.folderId === id ? { ...p, folderId: undefined } : p)),
+    });
   },
 
   exportProject(id) {
@@ -360,6 +419,7 @@ export const useStore = create<AppState>((set, get) => ({
       order: maxOrder + 1,
       archived: false,
       coverAttachmentId: bundle.project.coverAttachmentId ? remap(bundle.project.coverAttachmentId) : undefined,
+      folderId: undefined, // the source folder doesn't exist in this app — file as unfiled
     };
     await storage.saveProject(project);
     await storage.saveConfig(newProjectId, bundle.config);
@@ -444,6 +504,7 @@ export const useStore = create<AppState>((set, get) => ({
   async resetAll() {
     for (const p of get().projects) await storage.deleteProject(p.id);
     for (const cp of get().customPresets) await storage.deleteCustomPreset(cp.id);
+    for (const f of get().folders) await storage.deleteFolder(f.id);
     initPromise = null; // init() will recreate a fresh default project
     await get().init();
   },

@@ -1,10 +1,10 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { Attachment, CalendarEvent, Config, CustomPreset, Entry, Project, Todo } from '../types';
+import type { Attachment, CalendarEvent, Config, CustomPreset, Entry, Folder, Project, Todo } from '../types';
 import type { LogbookBundle, ProjectBundle, StorageAdapter } from './StorageAdapter';
 import { blobToDataUrl, dataUrlToBlob } from './blob';
 
 const DB_NAME = 'project-logbook';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 const ACTIVE_PROJECT_KEY = 'activeProjectId';
 
 interface LogbookDB extends DBSchema {
@@ -20,6 +20,7 @@ interface LogbookDB extends DBSchema {
   todos: { key: string; value: Todo; indexes: { byProject: string } };
   calendar: { key: string; value: CalendarEvent; indexes: { byProject: string } };
   presets: { key: string; value: CustomPreset };
+  folders: { key: string; value: Folder };
 }
 
 let dbPromise: Promise<IDBPDatabase<LogbookDB>> | null = null;
@@ -53,6 +54,9 @@ function db(): Promise<IDBPDatabase<LogbookDB>> {
         }
         if (oldVersion < 3) {
           database.createObjectStore('presets', { keyPath: 'id' });
+        }
+        if (oldVersion < 4) {
+          database.createObjectStore('folders', { keyPath: 'id' });
         }
       },
     });
@@ -159,6 +163,16 @@ export const indexedDbAdapter: StorageAdapter = {
     await (await db()).delete('presets', id);
   },
 
+  async listFolders() {
+    return (await db()).getAll('folders');
+  },
+  async saveFolder(folder) {
+    await (await db()).put('folders', folder);
+  },
+  async deleteFolder(id) {
+    await (await db()).delete('folders', id);
+  },
+
   async exportProject(projectId) {
     const database = await db();
     const project = await database.get('projects', projectId);
@@ -216,6 +230,7 @@ export const indexedDbAdapter: StorageAdapter = {
       }))
     );
     const customPresets = await database.getAll('presets');
+    const folders = await database.getAll('folders');
     return {
       version: 2,
       exportedAt: new Date().toISOString(),
@@ -227,6 +242,7 @@ export const indexedDbAdapter: StorageAdapter = {
       events,
       attachments,
       customPresets,
+      folders,
     } satisfies LogbookBundle;
   },
 
@@ -234,7 +250,7 @@ export const indexedDbAdapter: StorageAdapter = {
     const database = await db();
     // Replace everything with the bundle's contents.
     const tx = database.transaction(
-      ['projects', 'configs', 'meta', 'entries', 'attachments', 'todos', 'calendar', 'presets'],
+      ['projects', 'configs', 'meta', 'entries', 'attachments', 'todos', 'calendar', 'presets', 'folders'],
       'readwrite'
     );
     await Promise.all([
@@ -246,9 +262,11 @@ export const indexedDbAdapter: StorageAdapter = {
       tx.objectStore('todos').clear(),
       tx.objectStore('calendar').clear(),
       tx.objectStore('presets').clear(),
+      tx.objectStore('folders').clear(),
     ]);
     for (const p of bundle.projects) await tx.objectStore('projects').put(p);
     for (const preset of bundle.customPresets ?? []) await tx.objectStore('presets').put(preset);
+    for (const folder of bundle.folders ?? []) await tx.objectStore('folders').put(folder);
     for (const [projectId, config] of Object.entries(bundle.configs)) {
       await tx.objectStore('configs').put(config, projectId);
     }

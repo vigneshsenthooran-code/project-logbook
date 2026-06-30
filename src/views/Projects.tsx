@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store';
 import type { Project } from '../types';
@@ -8,6 +8,17 @@ import ProjectEditModal from '../components/ProjectEditModal';
 import ProjectCreateModal from '../components/ProjectCreateModal';
 import Masonry from '../components/Masonry';
 
+const UNFILED = '__unfiled__';
+const ALL = '__all__';
+
+type SortMode = 'recent' | 'alphabetical' | 'manual';
+
+const SORTERS: Record<SortMode, (a: Project, b: Project) => number> = {
+  recent: (a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''),
+  alphabetical: (a, b) => a.name.localeCompare(b.name),
+  manual: (a, b) => a.order - b.order,
+};
+
 function slugify(name: string): string {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'project';
 }
@@ -16,6 +27,7 @@ export default function Projects() {
   const navigate = useNavigate();
   const projects = useStore((s) => s.projects);
   const entries = useStore((s) => s.entries);
+  const folders = useStore((s) => s.folders);
   const activeProjectId = useStore((s) => s.activeProjectId);
   const switchProject = useStore((s) => s.switchProject);
   const archiveProject = useStore((s) => s.archiveProject);
@@ -23,14 +35,37 @@ export default function Projects() {
   const deleteProject = useStore((s) => s.deleteProject);
   const exportProject = useStore((s) => s.exportProject);
   const importProject = useStore((s) => s.importProject);
+  const moveProjectToFolder = useStore((s) => s.moveProjectToFolder);
+  const addFolder = useStore((s) => s.addFolder);
+  const renameFolder = useStore((s) => s.renameFolder);
+  const deleteFolder = useStore((s) => s.deleteFolder);
 
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [selectedFolder, setSelectedFolder] = useState<string>(ALL);
+  const [sortMode, setSortMode] = useState<SortMode>('manual');
+  const [addingFolder, setAddingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const active = [...projects].filter((p) => !p.archived).sort((a, b) => a.order - b.order);
-  const archived = [...projects].filter((p) => p.archived).sort((a, b) => a.order - b.order);
+  const sortedFolders = useMemo(() => [...folders].sort((a, b) => a.order - b.order), [folders]);
+
+  function inSelectedFolder(p: Project): boolean {
+    if (selectedFolder === ALL) return true;
+    if (selectedFolder === UNFILED) return !p.folderId;
+    return p.folderId === selectedFolder;
+  }
+
+  const visible = projects.filter(inSelectedFolder);
+  const active = [...visible].filter((p) => !p.archived).sort(SORTERS[sortMode]);
+  const archived = [...visible].filter((p) => p.archived).sort(SORTERS[sortMode]);
+
+  function folderCount(id: string | null): number {
+    return projects.filter((p) => (id === null ? !p.folderId : p.folderId === id) && !p.archived).length;
+  }
 
   function entryCount(id: string): number {
     return entries.filter((e) => e.projectId === id).length;
@@ -88,6 +123,32 @@ export default function Projects() {
     }
   }
 
+  async function submitNewFolder() {
+    const name = newFolderName.trim();
+    if (name) await addFolder(name);
+    setNewFolderName('');
+    setAddingFolder(false);
+  }
+
+  function startRenameFolder(id: string, currentName: string) {
+    setRenamingFolderId(id);
+    setRenameValue(currentName);
+  }
+
+  async function submitRenameFolder() {
+    const id = renamingFolderId;
+    const name = renameValue.trim();
+    if (id && name) await renameFolder(id, name);
+    setRenamingFolderId(null);
+    setRenameValue('');
+  }
+
+  function handleDeleteFolder(id: string, name: string) {
+    if (!confirm(`Delete the "${name}" folder? Its projects move to Unfiled — nothing is deleted.`)) return;
+    if (selectedFolder === id) setSelectedFolder(ALL);
+    void deleteFolder(id);
+  }
+
   return (
     <div className="settings">
       <header className="view-head projects-head">
@@ -116,6 +177,96 @@ export default function Projects() {
         />
       </header>
 
+      <div className="projects-toolbar">
+        <div className="folder-rail">
+          <button
+            className={`folder-pill ${selectedFolder === ALL ? 'is-active' : ''}`}
+            onClick={() => setSelectedFolder(ALL)}
+          >
+            All projects
+            <span className="folder-pill-count">{projects.filter((p) => !p.archived).length}</span>
+          </button>
+          <button
+            className={`folder-pill ${selectedFolder === UNFILED ? 'is-active' : ''}`}
+            onClick={() => setSelectedFolder(UNFILED)}
+          >
+            Unfiled
+            <span className="folder-pill-count">{folderCount(null)}</span>
+          </button>
+          {sortedFolders.map((f) =>
+            renamingFolderId === f.id ? (
+              <input
+                key={f.id}
+                className="input folder-pill-input"
+                autoFocus
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void submitRenameFolder();
+                  if (e.key === 'Escape') setRenamingFolderId(null);
+                }}
+                onBlur={() => void submitRenameFolder()}
+              />
+            ) : (
+              <div key={f.id} className={`folder-pill folder-pill-group ${selectedFolder === f.id ? 'is-active' : ''}`}>
+                <button className="folder-pill-main" onClick={() => setSelectedFolder(f.id)}>
+                  {f.name}
+                  <span className="folder-pill-count">{folderCount(f.id)}</span>
+                </button>
+                <button
+                  className="folder-pill-edit"
+                  title="Rename folder"
+                  onClick={() => startRenameFolder(f.id, f.name)}
+                >
+                  ✎
+                </button>
+                <button
+                  className="folder-pill-del"
+                  title="Delete folder"
+                  onClick={() => handleDeleteFolder(f.id, f.name)}
+                >
+                  ×
+                </button>
+              </div>
+            )
+          )}
+          {addingFolder ? (
+            <input
+              className="input folder-pill-input"
+              autoFocus
+              placeholder="Folder name…"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void submitNewFolder();
+                if (e.key === 'Escape') {
+                  setAddingFolder(false);
+                  setNewFolderName('');
+                }
+              }}
+              onBlur={() => void submitNewFolder()}
+            />
+          ) : (
+            <button className="folder-pill folder-pill-new" onClick={() => setAddingFolder(true)}>
+              + Folder
+            </button>
+          )}
+        </div>
+
+        <label className="projects-sort">
+          <span className="t-caption-sm muted">Sort</span>
+          <select className="input" value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
+            <option value="manual">Manual order</option>
+            <option value="recent">Most recent</option>
+            <option value="alphabetical">Alphabetical</option>
+          </select>
+        </label>
+      </div>
+
+      {active.length === 0 && (
+        <p className="t-body-sm muted projects-empty">No projects here yet.</p>
+      )}
+
       <Masonry
         className="project-grid"
         minColumnWidth={260}
@@ -127,11 +278,13 @@ export default function Projects() {
               project={p}
               isActive={p.id === activeProjectId}
               entryCount={entryCount(p.id)}
+              folders={sortedFolders}
               onOpen={() => void openProject(p.id)}
               onEdit={() => void openEdit(p)}
               onArchiveToggle={() => void handleArchiveToggle(p)}
               onExport={() => void handleExport(p)}
               onDelete={() => void handleDelete(p)}
+              onMoveToFolder={(folderId) => void moveProjectToFolder(p.id, folderId)}
             />
           ),
         }))}
@@ -154,11 +307,13 @@ export default function Projects() {
                     project={p}
                     isActive={false}
                     entryCount={entryCount(p.id)}
+                    folders={sortedFolders}
                     onOpen={() => void openProject(p.id)}
                     onEdit={() => void openEdit(p)}
                     onArchiveToggle={() => void handleArchiveToggle(p)}
                     onExport={() => void handleExport(p)}
                     onDelete={() => void handleDelete(p)}
+                    onMoveToFolder={(folderId) => void moveProjectToFolder(p.id, folderId)}
                   />
                 ),
               }))}

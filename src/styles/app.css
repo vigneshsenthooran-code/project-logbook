@@ -1647,6 +1647,48 @@
   border-radius: var(--r-full);
 }
 
+/* Presets manager (Settings) */
+.preset-mgr-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+  margin-top: var(--s-base);
+}
+.preset-mgr-item {
+  padding: var(--s-base);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+}
+.preset-mgr-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+  flex-wrap: wrap;
+}
+.preset-mgr-name {
+  flex: 1;
+  min-width: 160px;
+  font-weight: 700;
+}
+.preset-mgr-desc {
+  flex: 2;
+  min-width: 200px;
+}
+.preset-mgr-builtins {
+  margin-top: var(--s-xl);
+}
+.preset-mgr-builtins .preset-list {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+.preset-mgr-builtins .preset-card {
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+  align-items: flex-start;
+}
+
 /* Category manager */
 .catmgr-head {
   display: flex;
@@ -1806,6 +1848,112 @@
   gap: var(--s-sm);
   flex: none;
 }
+
+.projects-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-base);
+  flex-wrap: wrap;
+  margin: var(--s-lg) 0;
+}
+.folder-rail {
+  display: flex;
+  align-items: center;
+  gap: var(--s-xs);
+  flex-wrap: wrap;
+}
+.folder-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--color-hairline);
+  background: var(--color-card);
+  color: var(--color-body);
+  border-radius: var(--r-full);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
+}
+.folder-pill:hover {
+  color: var(--color-ink);
+  border-color: var(--color-hairline-soft);
+}
+.folder-pill.is-active {
+  border-color: var(--color-primary);
+  color: var(--color-ink);
+  background: var(--color-primary-pale);
+}
+.folder-pill-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+.folder-pill.is-active .folder-pill-count {
+  color: var(--color-primary-active);
+}
+.folder-pill-group {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+.folder-pill-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 8px 6px 8px 14px;
+}
+.folder-pill-edit,
+.folder-pill-del {
+  border: none;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1;
+}
+.folder-pill-edit:hover {
+  color: var(--color-ink);
+}
+.folder-pill-del:hover {
+  color: var(--color-error);
+}
+.folder-pill-input {
+  width: 140px;
+  border-radius: var(--r-full);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+}
+.folder-pill-new {
+  border-style: dashed;
+  color: var(--color-muted);
+}
+.folder-pill-new:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.projects-sort {
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+  flex: none;
+}
+.projects-sort .input {
+  width: auto;
+  padding: 8px 14px;
+}
+.projects-empty {
+  margin: var(--s-lg) 0;
+}
 /* .project-grid layout (columns + gap) is handled by the Masonry component. */
 .project-tile {
   --mw: 187px;
@@ -1886,7 +2034,7 @@
   font-family: var(--font-display);
   font-size: 40px;
   font-weight: 800;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--color-muted-soft);
 }
 .project-tile-badge {
   position: absolute;
@@ -1946,6 +2094,11 @@
 }
 .project-tile-del {
   color: var(--color-error);
+}
+.project-tile-folder-select {
+  margin-top: var(--s-xs);
+  font-size: 12px;
+  padding: 8px 12px;
 }
 
 .projects-archived {

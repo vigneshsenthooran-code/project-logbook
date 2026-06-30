@@ -1,4 +1,4 @@
-import type { CalendarEvent, Config, CustomPreset, Entry, Project, Todo } from '../types';
+import type { CalendarEvent, Config, CustomPreset, Entry, Folder, Project, Todo } from '../types';
 import type { LogbookBundle, ProjectBundle, StorageAdapter } from './StorageAdapter';
 import { supabase } from '../lib/supabaseClient';
 import { blobToDataUrl, dataUrlToBlob } from './blob';
@@ -104,6 +104,7 @@ function rowToProject(r: Record<string, unknown>): Project {
     startDate: (r.start_date as string | null) ?? undefined,
     archived: (r.archived as boolean | null) ?? undefined,
     createdAt: (r.created_at as string | null) ?? undefined,
+    folderId: (r.folder_id as string | null) ?? undefined,
   };
 }
 
@@ -114,6 +115,15 @@ function rowToPreset(r: Record<string, unknown>): CustomPreset {
     description: r.description as string,
     categories: r.categories as CustomPreset['categories'],
     createdAt: r.created_at as string,
+  };
+}
+
+function rowToFolder(r: Record<string, unknown>): Folder {
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    order: r.order as number,
+    createdAt: (r.created_at as string | null) ?? undefined,
   };
 }
 
@@ -135,6 +145,7 @@ export const supabaseAdapter: StorageAdapter = {
       start_date: project.startDate ?? null,
       archived: project.archived ?? false,
       created_at: project.createdAt ?? null,
+      folder_id: project.folderId ?? null,
     });
     if (error) throw error;
   },
@@ -272,6 +283,27 @@ export const supabaseAdapter: StorageAdapter = {
     if (error) throw error;
   },
 
+  async listFolders() {
+    const { data, error } = await supabase.from('folders').select('*');
+    if (error) throw error;
+    return (data ?? []).map(rowToFolder);
+  },
+  async saveFolder(folder) {
+    const uid = await userId();
+    const { error } = await supabase.from('folders').upsert({
+      id: folder.id,
+      user_id: uid,
+      name: folder.name,
+      order: folder.order,
+      created_at: folder.createdAt ?? null,
+    });
+    if (error) throw error;
+  },
+  async deleteFolder(id) {
+    const { error } = await supabase.from('folders').delete().eq('id', id);
+    if (error) throw error;
+  },
+
   async exportProject(projectId) {
     const { data: projectRow, error: projectError } = await supabase
       .from('projects')
@@ -355,6 +387,7 @@ export const supabaseAdapter: StorageAdapter = {
       })
     );
     const customPresets = await this.listCustomPresets();
+    const folders = await this.listFolders();
     return {
       version: 2,
       exportedAt: new Date().toISOString(),
@@ -366,10 +399,12 @@ export const supabaseAdapter: StorageAdapter = {
       events,
       attachments,
       customPresets,
+      folders,
     } satisfies LogbookBundle;
   },
 
   async importAll(bundle) {
+    for (const folder of bundle.folders ?? []) await this.saveFolder(folder);
     for (const p of bundle.projects) await this.saveProject(p);
     for (const preset of bundle.customPresets ?? []) await this.saveCustomPreset(preset);
     for (const [projectId, config] of Object.entries(bundle.configs)) {

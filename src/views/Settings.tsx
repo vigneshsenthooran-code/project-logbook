@@ -1,5 +1,6 @@
 import AccountSection from '../components/AccountSection';
 import StorageSection from '../components/StorageSection';
+import PresetsSection from '../components/PresetsSection';
 import DataSection from '../components/DataSection';
 import AboutSection from '../components/AboutSection';
 
@@ -13,6 +14,7 @@ export default function Settings() {
 
       <AccountSection />
       <StorageSection />
+      <PresetsSection />
       <DataSection />
       <AboutSection />
     </div>

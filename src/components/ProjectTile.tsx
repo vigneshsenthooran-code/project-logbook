@@ -1,36 +1,43 @@
 import { useEffect, useState } from 'react';
-import type { Project } from '../types';
+import type { Folder, Project } from '../types';
 import { useStore } from '../store';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+// Cover fallback when no image is set — kept within the app's dark
+// olive/near-black/lime language instead of the old bright cat-color swatches,
+// so untouched tiles read as part of the same surface as everything else.
 const COVER_GRADIENTS = [
-  'linear-gradient(135deg, var(--cat-1), var(--cat-3))',
-  'linear-gradient(135deg, var(--cat-4), var(--cat-6))',
-  'linear-gradient(135deg, var(--cat-5), var(--cat-7))',
-  'linear-gradient(135deg, var(--cat-8), var(--cat-3))',
+  'linear-gradient(135deg, var(--color-surface-strong), var(--color-card))',
+  'linear-gradient(135deg, var(--color-card-strong), var(--color-surface-strong))',
+  'linear-gradient(135deg, var(--color-primary-pale), var(--color-card))',
+  'linear-gradient(135deg, var(--color-card), var(--color-canvas))',
 ];
 
 export default function ProjectTile({
   project,
   isActive,
   entryCount,
+  folders,
   onOpen,
   onEdit,
   onArchiveToggle,
   onExport,
   onDelete,
+  onMoveToFolder,
 }: {
   project: Project;
   isActive: boolean;
   entryCount: number;
+  folders: Folder[];
   onOpen: () => void;
   onEdit: () => void;
   onArchiveToggle: () => void;
   onExport: () => void;
   onDelete: () => void;
+  onMoveToFolder: (folderId: string | undefined) => void;
 }) {
   const getAttachment = useStore((s) => s.getAttachment);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
@@ -87,6 +94,22 @@ export default function ProjectTile({
                 Delete
               </button>
             </div>
+
+            {folders.length > 0 && (
+              <select
+                className="input project-tile-folder-select"
+                value={project.folderId ?? ''}
+                onChange={(e) => onMoveToFolder(e.target.value || undefined)}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <option value="">Unfiled</option>
+                {folders.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </div>
       </div>

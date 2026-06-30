@@ -72,6 +72,15 @@ export interface Project {
   archived?: boolean;
   createdAt?: string; // ISO
   demo?: boolean; // TEMPORARY: marks a project seeded by the demo button
+  folderId?: string; // present => filed under a project folder, absent => unfiled
+}
+
+/** A user-created group that projects can be filed under on the Projects page. */
+export interface Folder {
+  id: string;
+  name: string;
+  order: number;
+  createdAt?: string; // ISO
 }
 
 /** A user-saved, reusable category set — appears in the preset picker for every project. */
