@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import Topbar from './Topbar';
-import ProjectPillBar from './ProjectPillBar';
 import ContourBackground from './ContourBackground';
 
 export default function AppShell({ children }: { children: ReactNode }) {
@@ -11,7 +10,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <Topbar />
         <main className="shell-main">{children}</main>
       </div>
-      <ProjectPillBar />
     </div>
   );
 }

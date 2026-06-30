@@ -20,13 +20,26 @@ export default function Masonry({
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const ro = new ResizeObserver((entries) => {
-      const width = entries[0].contentRect.width;
+
+    const recompute = (width: number) => {
       const next = Math.max(1, Math.floor((width + gap) / (minColumnWidth + gap)));
       setColumnCount((prev) => (prev === next ? prev : next));
-    });
+    };
+
+    const ro = new ResizeObserver((entries) => recompute(entries[0].contentRect.width));
     ro.observe(el);
-    return () => ro.disconnect();
+
+    // Belt-and-suspenders: a window resize (e.g. a devtools/sidebar panel
+    // closing) should already retrigger the observer, but re-measure
+    // directly here too in case that edge update gets missed, so the
+    // column count can never get stuck below what the available width fits.
+    const handleWindowResize = () => recompute(el.getBoundingClientRect().width);
+    window.addEventListener('resize', handleWindowResize);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', handleWindowResize);
+    };
   }, [gap, minColumnWidth]);
 
   const columns = useMemo(() => {

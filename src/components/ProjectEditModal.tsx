@@ -3,6 +3,7 @@ import type { Project } from '../types';
 import { useStore } from '../store';
 import { PRESETS } from '../presets';
 import CategoryManager from './CategoryManager';
+import { resizeImageFile } from '../lib/resizeImage';
 
 export default function ProjectEditModal({ project, onClose }: { project: Project; onClose: () => void }) {
   const updateProject = useStore((s) => s.updateProject);
@@ -40,9 +41,10 @@ export default function ProjectEditModal({ project, onClose }: { project: Projec
   }, [project.coverAttachmentId, getAttachment]);
 
   async function pickCover(file: File) {
-    setCoverPreview(URL.createObjectURL(file));
+    const resized = await resizeImageFile(file);
+    setCoverPreview(URL.createObjectURL(resized));
     setHasCover(true);
-    await setProjectCover(project.id, { name: file.name, mime: file.type, blob: file });
+    await setProjectCover(project.id, { name: file.name, mime: resized.type || file.type, blob: resized });
   }
 
   async function clearCover() {
