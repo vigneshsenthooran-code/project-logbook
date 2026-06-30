@@ -21,7 +21,7 @@ export default function App() {
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setMinTimeElapsed(true), 3000);
+    const timer = setTimeout(() => setMinTimeElapsed(true), 2000);
     return () => clearTimeout(timer);
   }, []);
 

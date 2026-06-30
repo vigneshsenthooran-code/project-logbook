@@ -35,34 +35,16 @@
     radial-gradient(120% 80% at 50% -10%, rgba(180, 211, 53, 0.06), transparent 60%),
     var(--color-surface-soft);
 }
-.contour-bg-svg {
+.contour-bg-canvas {
   position: absolute;
-  top: -10%;
-  left: -10%;
-  width: 120%;
-  height: 120%;
-  color: rgba(233, 237, 218, 0.05);
-  animation: contour-drift 46s ease-in-out infinite alternate;
-}
-@keyframes contour-drift {
-  from {
-    transform: translate3d(0, 0, 0) scale(1.02);
-  }
-  to {
-    transform: translate3d(-3%, -2.5%, 0) scale(1.08);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .contour-bg-svg {
-    animation: none;
-  }
+  inset: 0;
+  display: block;
 }
 
 .shell-main {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  scroll-snap-type: y proximity;
   scroll-behavior: smooth;
 }
 
@@ -330,7 +312,7 @@
   stroke-width: 2.5;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: loading-draw 1.5s ease forwards;
+  animation: loading-draw 1s ease forwards;
 }
 @keyframes loading-draw {
   to {
@@ -366,14 +348,23 @@
   }
 }
 
-/* ---- Project map (interactive radial line diagram, dashboard hero) ---- */
-.project-map {
-  position: relative;
+/* ---- Dashboard hero: project map + project switcher list ---- */
+.dashboard-hero {
+  display: flex;
+  align-items: stretch;
   width: 100%;
   height: min(72vh, 760px);
   min-height: 480px;
-  background: radial-gradient(circle at 50% 42%, var(--color-surface-strong) 0%, var(--color-surface-soft) 70%);
   border-bottom: 1px solid var(--color-hairline-soft);
+}
+
+/* ---- Project map (interactive radial line diagram) ---- */
+.project-map {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  background: radial-gradient(circle at 50% 42%, var(--color-surface-strong) 0%, var(--color-surface-soft) 70%);
   overflow: hidden;
 }
 .project-map-svg {
@@ -460,11 +451,76 @@
   }
 }
 
+/* ---- Project switcher (right of the map, dashboard hero) ---- */
+.project-switcher {
+  flex: 0 0 400px;
+  width: 400px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--color-surface-soft);
+  overflow-y: auto;
+}
+/* margin: auto 0 centers the list when it's shorter than the panel, and
+   resolves to 0 (normal top-aligned scrolling) once it overflows — avoids
+   the "first item unreachable" bug that justify-content: center + overflow
+   has on a scroll container. */
+.project-switcher-list {
+  width: 100%;
+  flex-shrink: 0;
+  margin: auto 0;
+  display: flex;
+  flex-direction: column;
+}
+.project-switcher-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 72px;
+  flex-shrink: 0;
+  padding: 0 var(--s-lg);
+  border: none;
+  border-left: 3px solid transparent;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+.project-switcher-item:hover,
+.project-switcher-item:focus-visible {
+  background: rgba(233, 237, 218, 0.12);
+}
+.project-switcher-item-name {
+  display: inline-block;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--color-ink);
+  transform: scale(1);
+  transform-origin: left center;
+  transition: color 140ms ease, transform 140ms ease;
+}
+.project-switcher-item:hover .project-switcher-item-name,
+.project-switcher-item:focus-visible .project-switcher-item-name {
+  color: var(--color-primary);
+  transform: scale(1.06);
+}
+.project-switcher-item.is-active {
+  border-left-color: var(--color-primary);
+}
+.project-switcher-item.is-active .project-switcher-item-name {
+  color: var(--color-primary);
+}
+.project-switcher-empty {
+  padding: var(--s-lg);
+}
+
 .dashboard-body {
   max-width: 1280px;
   margin: 0 auto;
   padding: var(--s-xl) var(--s-xl) var(--s-section);
-  scroll-snap-align: start;
 }
 
 .dashboard-grid {
@@ -737,7 +793,7 @@
   transform: translateY(-3px);
 }
 .entry-card:hover .entry-card-outline {
-  --card-border-c: #fff;
+  --card-border-c: var(--color-primary);
   filter:
     drop-shadow(var(--card-bw) 0 0 var(--card-border-c))
     drop-shadow(calc(-1 * var(--card-bw)) 0 0 var(--card-border-c))
@@ -865,13 +921,45 @@
   position: relative;
   max-width: 640px;
 }
+.entry-detail-modal--split {
+  max-width: 1100px;
+  width: 95vw;
+  overflow: hidden;
+}
+.entry-detail-layout {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.entry-detail-modal--split .entry-detail-layout {
+  flex-direction: row;
+  max-height: 90vh;
+}
+.entry-detail-media-col {
+  flex: 1 1 60%;
+  min-width: 0;
+  background: var(--color-surface-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.entry-detail-modal--split .entry-detail-body {
+  flex: 0 0 400px;
+  max-width: 400px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.entry-detail-body-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-sm);
+}
 .entry-detail-actions {
-  position: absolute;
-  top: var(--s-sm);
-  right: var(--s-sm);
   display: flex;
   gap: var(--s-xs);
-  z-index: 1;
+  flex-shrink: 0;
 }
 .icon-btn {
   width: 36px;
@@ -934,6 +1022,22 @@
   white-space: pre-wrap;
   word-break: break-word;
   box-sizing: border-box;
+}
+.entry-detail-media-col .entry-detail-media {
+  height: 100%;
+  max-height: none;
+}
+.entry-detail-media-col .entry-detail-media img {
+  max-height: 100%;
+  height: 100%;
+}
+.entry-detail-media-col .entry-detail-media-file {
+  height: 100%;
+  max-height: none;
+}
+.entry-detail-media-col .entry-detail-media-text {
+  max-height: 100%;
+  overflow-y: auto;
 }
 .entry-detail-body {
   padding: var(--s-lg);
@@ -1753,6 +1857,22 @@
     flex: 1;
     min-width: 280px;
   }
+  .dashboard-hero {
+    flex-direction: column;
+    height: auto;
+    min-height: 0;
+  }
+  .project-map {
+    height: min(60vh, 560px);
+    min-height: 360px;
+  }
+  .project-switcher {
+    width: 100%;
+    flex: 1 1 auto;
+  }
+  .project-switcher-list {
+    max-height: 280px;
+  }
 }
 
 @media (max-width: 744px) {
@@ -1786,6 +1906,35 @@
   .topbar-tool {
     min-width: 44px;
     padding: 6px var(--s-sm) 7px;
+  }
+  .entry-detail-modal--split {
+    width: 100%;
+    max-width: 640px;
+  }
+  .entry-detail-modal--split .entry-detail-layout {
+    flex-direction: column;
+    max-height: none;
+  }
+  .entry-detail-media-col {
+    flex: none;
+    width: 100%;
+  }
+  .entry-detail-modal--split .entry-detail-body {
+    flex: none;
+    max-width: none;
+    max-height: none;
+    overflow-y: visible;
+  }
+  .entry-detail-media-col .entry-detail-media {
+    height: auto;
+    max-height: 50vh;
+  }
+  .entry-detail-media-col .entry-detail-media img {
+    height: auto;
+    max-height: 50vh;
+  }
+  .entry-detail-media-col .entry-detail-media-file {
+    height: 50vh;
   }
 }
 

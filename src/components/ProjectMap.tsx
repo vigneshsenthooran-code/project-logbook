@@ -207,13 +207,13 @@ export default function ProjectMap() {
     }
 
     let raf = 0;
-    const MAIN_MOUSE_INFLUENCE = 7;
-    const ENTRY_MOUSE_INFLUENCE = 20;
+    const MAIN_MOUSE_INFLUENCE = 22;
+    const ENTRY_MOUSE_INFLUENCE = 50;
 
     const tick = (t: number) => {
       const time = t / 1000;
-      mouseSmoothed.current.x += (mouseTarget.current.x - mouseSmoothed.current.x) * 0.04;
-      mouseSmoothed.current.y += (mouseTarget.current.y - mouseSmoothed.current.y) * 0.04;
+      mouseSmoothed.current.x += (mouseTarget.current.x - mouseSmoothed.current.x) * 0.08;
+      mouseSmoothed.current.y += (mouseTarget.current.y - mouseSmoothed.current.y) * 0.08;
       const mx = mouseSmoothed.current.x;
       const my = mouseSmoothed.current.y;
 

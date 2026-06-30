@@ -5,6 +5,7 @@ import EntryGrid from '../components/EntryGrid';
 import CalendarWidget from '../components/CalendarWidget';
 import TodoList from '../components/TodoList';
 import ProjectMap from '../components/ProjectMap';
+import ProjectSwitcher from '../components/ProjectSwitcher';
 import { filterAndSort } from '../lib/sortEntries';
 
 export default function Dashboard() {
@@ -16,7 +17,10 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard">
-      <ProjectMap />
+      <div className="dashboard-hero">
+        <ProjectMap />
+        <ProjectSwitcher />
+      </div>
       <div className="dashboard-body" id="dashboard-body">
         <div className="dashboard-grid">
           <div className="dashboard-main">
