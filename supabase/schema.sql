@@ -80,12 +80,27 @@ create index if not exists todos_by_project on todos(project_id);
 create table if not exists calendar_events (
   id uuid primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
-  project_id uuid not null references projects(id) on delete cascade,
+  project_id uuid references projects(id) on delete cascade,
   title text not null,
   date date not null,
+  end_date date,
+  time text,
+  reminder boolean not null default false,
+  kind text not null default 'event',
+  done boolean not null default false,
+  category_id text,
+  recurrence jsonb,
   note text
 );
 create index if not exists calendar_events_by_project on calendar_events(project_id);
+
+create table if not exists periods (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  start_date date not null,
+  week_count integer not null,
+  break_weeks integer[] not null default '{}',
+  labels jsonb
+);
 
 create table if not exists meta (
   user_id uuid primary key references auth.users(id) on delete cascade,
@@ -101,6 +116,7 @@ alter table entries enable row level security;
 alter table attachments enable row level security;
 alter table todos enable row level security;
 alter table calendar_events enable row level security;
+alter table periods enable row level security;
 alter table meta enable row level security;
 
 create policy "own rows" on projects for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -111,6 +127,7 @@ create policy "own rows" on entries for all using (auth.uid() = user_id) with ch
 create policy "own rows" on attachments for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own rows" on todos for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own rows" on calendar_events for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "own rows" on periods for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own rows" on meta for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- Storage bucket for attachments (private; access goes through signed URLs / RLS-style storage policies).

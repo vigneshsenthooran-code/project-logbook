@@ -1,4 +1,4 @@
-import type { Attachment, CalendarEvent, Config, CustomPreset, Entry, Folder, Project, Todo } from '../types';
+import type { Attachment, CalendarEvent, Config, CustomPreset, Entry, Folder, Period, Project, Todo } from '../types';
 
 /** A portable snapshot of the whole app (every project), used for export / import. */
 export interface LogbookBundle {
@@ -72,6 +72,10 @@ export interface StorageAdapter {
   listFolders(): Promise<Folder[]>;
   saveFolder(folder: Folder): Promise<void>;
   deleteFolder(id: string): Promise<void>;
+
+  /** The single, app-wide term/period. Singleton read/write, not a list. */
+  getPeriod(): Promise<Period | undefined>;
+  savePeriod(period: Period): Promise<void>;
 
   exportAll(): Promise<LogbookBundle>;
   importAll(bundle: LogbookBundle): Promise<void>;

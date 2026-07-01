@@ -43,6 +43,7 @@ describe('indexedDbAdapter export/import round-trip', () => {
       projectId: PROJECT_ID,
       title: 'crit',
       date: '2026-07-01',
+      kind: 'event',
     });
     const blob = new Blob(['hello world'], { type: 'text/plain' });
     await indexedDbAdapter.saveAttachment({
@@ -102,7 +103,7 @@ describe('indexedDbAdapter export/import round-trip', () => {
       blob: new Blob(['x']),
     });
     await indexedDbAdapter.saveTodo({ id: 't2', projectId: 'p2', text: 'x', done: false, createdAt: new Date().toISOString() });
-    await indexedDbAdapter.saveEvent({ id: 'v2', projectId: 'p2', title: 'x', date: '2026-01-01' });
+    await indexedDbAdapter.saveEvent({ id: 'v2', projectId: 'p2', title: 'x', date: '2026-01-01', kind: 'event' });
 
     await indexedDbAdapter.deleteProject('p2');
 

@@ -1,11 +1,12 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { Attachment, CalendarEvent, Config, CustomPreset, Entry, Folder, Project, Todo } from '../types';
+import type { Attachment, CalendarEvent, Config, CustomPreset, Entry, Folder, Period, Project, Todo } from '../types';
 import type { LogbookBundle, ProjectBundle, StorageAdapter } from './StorageAdapter';
 import { blobToDataUrl, dataUrlToBlob } from './blob';
 
 const DB_NAME = 'project-logbook';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 const ACTIVE_PROJECT_KEY = 'activeProjectId';
+const PERIOD_KEY = 'global';
 
 interface LogbookDB extends DBSchema {
   projects: { key: string; value: Project };
@@ -21,6 +22,7 @@ interface LogbookDB extends DBSchema {
   calendar: { key: string; value: CalendarEvent; indexes: { byProject: string } };
   presets: { key: string; value: CustomPreset };
   folders: { key: string; value: Folder };
+  period: { key: string; value: Period };
 }
 
 let dbPromise: Promise<IDBPDatabase<LogbookDB>> | null = null;
@@ -57,6 +59,9 @@ function db(): Promise<IDBPDatabase<LogbookDB>> {
         }
         if (oldVersion < 4) {
           database.createObjectStore('folders', { keyPath: 'id' });
+        }
+        if (oldVersion < 5) {
+          database.createObjectStore('period');
         }
       },
     });
@@ -171,6 +176,13 @@ export const indexedDbAdapter: StorageAdapter = {
   },
   async deleteFolder(id) {
     await (await db()).delete('folders', id);
+  },
+
+  async getPeriod() {
+    return (await db()).get('period', PERIOD_KEY);
+  },
+  async savePeriod(period) {
+    await (await db()).put('period', period, PERIOD_KEY);
   },
 
   async exportProject(projectId) {

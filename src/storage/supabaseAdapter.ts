@@ -1,4 +1,4 @@
-import type { CalendarEvent, Config, CustomPreset, Entry, Folder, Project, Todo } from '../types';
+import type { CalendarEvent, Config, CustomPreset, Entry, Folder, Period, Project, Todo } from '../types';
 import type { LogbookBundle, ProjectBundle, StorageAdapter } from './StorageAdapter';
 import { supabase } from '../lib/supabaseClient';
 import { blobToDataUrl, dataUrlToBlob } from './blob';
@@ -73,9 +73,16 @@ function eventToRow(e: CalendarEvent, uid: string) {
   return {
     id: e.id,
     user_id: uid,
-    project_id: e.projectId,
+    project_id: e.projectId ?? null,
     title: e.title,
     date: e.date,
+    end_date: e.endDate ?? null,
+    time: e.time ?? null,
+    reminder: e.reminder ?? false,
+    kind: e.kind,
+    done: e.done ?? false,
+    category_id: e.categoryId ?? null,
+    recurrence: e.recurrence ?? null,
     note: e.note ?? null,
   };
 }
@@ -83,10 +90,27 @@ function eventToRow(e: CalendarEvent, uid: string) {
 function rowToEvent(r: Record<string, unknown>): CalendarEvent {
   return {
     id: r.id as string,
-    projectId: r.project_id as string,
+    projectId: (r.project_id as string | null) ?? undefined,
     title: r.title as string,
     date: r.date as string,
+    endDate: (r.end_date as string | null) ?? undefined,
+    time: (r.time as string | null) ?? undefined,
+    reminder: (r.reminder as boolean | null) ?? undefined,
+    kind: (r.kind as CalendarEvent['kind']) ?? 'event',
+    done: (r.done as boolean | null) ?? undefined,
+    categoryId: (r.category_id as string | null) ?? undefined,
+    recurrence: (r.recurrence as CalendarEvent['recurrence']) ?? undefined,
     note: (r.note as string | null) ?? undefined,
+  };
+}
+
+function rowToPeriod(r: Record<string, unknown>): Period {
+  return {
+    id: 'global',
+    startDate: r.start_date as string,
+    weekCount: r.week_count as number,
+    breakWeeks: (r.break_weeks as number[]) ?? [],
+    labels: (r.labels as Record<number, string> | null) ?? undefined,
   };
 }
 
@@ -301,6 +325,23 @@ export const supabaseAdapter: StorageAdapter = {
   },
   async deleteFolder(id) {
     const { error } = await supabase.from('folders').delete().eq('id', id);
+    if (error) throw error;
+  },
+
+  async getPeriod() {
+    const uid = await userId();
+    const { data } = await supabase.from('periods').select('*').eq('user_id', uid).maybeSingle();
+    return data ? rowToPeriod(data) : undefined;
+  },
+  async savePeriod(period) {
+    const uid = await userId();
+    const { error } = await supabase.from('periods').upsert({
+      user_id: uid,
+      start_date: period.startDate,
+      week_count: period.weekCount,
+      break_weeks: period.breakWeeks,
+      labels: period.labels ?? null,
+    });
     if (error) throw error;
   },
 

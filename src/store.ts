@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import type { Attachment, CalendarEvent, Category, Config, CustomPreset, Entry, Folder, Project, Todo } from './types';
+import type { Attachment, CalendarEvent, Category, Config, CustomPreset, Entry, Folder, Period, Project, Todo } from './types';
 import { INBOX_ID } from './types';
 import { indexedDbAdapter } from './storage/indexedDbAdapter';
 import type { LogbookBundle, ProjectBundle, StorageAdapter } from './storage/StorageAdapter';
 import { categoriesForPreset, categoriesFromSet } from './presets';
-import { nowIso, uid } from './lib/id';
+import { nowIso, toDateKey, uid } from './lib/id';
 import { dataUrlToBlob } from './storage/blob';
 import { DEMO_PROJECTS } from './lib/seedDemo';
 
@@ -41,6 +41,8 @@ interface AppState {
   events: CalendarEvent[];
   customPresets: CustomPreset[];
   folders: Folder[];
+  /** The single, app-wide term/period. Null until the user configures one. */
+  period: Period | null;
 
   init: () => Promise<void>;
 
@@ -73,7 +75,8 @@ interface AppState {
   // entries
   addEntry: (
     entry: Omit<Entry, 'id' | 'projectId' | 'createdAt' | 'updatedAt'>,
-    attachments?: { name: string; mime: string; blob: Blob }[]
+    attachments?: { name: string; mime: string; blob: Blob }[],
+    projectId?: string
   ) => Promise<Entry>;
   updateEntry: (id: string, patch: Partial<Entry>) => Promise<void>;
   deleteEntry: (id: string) => Promise<void>;
@@ -83,12 +86,19 @@ interface AppState {
   setCategories: (categories: Category[]) => Promise<void>;
   applyPreset: (presetId: string) => Promise<void>;
 
-  // planner (scoped to the active project)
+  // planner — legacy per-project to-do plumbing, kept as a data safety net;
+  // the UI now surfaces to-dos as calendar items (kind: 'task') instead.
   addTodo: (text: string, dueDate?: string) => Promise<void>;
   toggleTodo: (id: string) => Promise<void>;
   deleteTodo: (id: string) => Promise<void>;
-  addEvent: (title: string, date: string, note?: string) => Promise<void>;
+
+  // calendar — universal across all projects
+  addCalendarItem: (input: Omit<CalendarEvent, 'id'>) => Promise<CalendarEvent>;
+  toggleCalendarEvent: (id: string) => Promise<void>;
   deleteEvent: (id: string) => Promise<void>;
+
+  // term / period (global singleton)
+  savePeriod: (period: Omit<Period, 'id'>) => Promise<void>;
 
   // export / import
   exportBundle: () => Promise<LogbookBundle>;
@@ -116,6 +126,7 @@ export const useStore = create<AppState>((set, get) => ({
   events: [],
   customPresets: [],
   folders: [],
+  period: null,
 
   async init() {
     if (initPromise) return initPromise;
@@ -143,11 +154,32 @@ export const useStore = create<AppState>((set, get) => ({
         await storage.setActiveProjectId(activeProjectId);
       }
 
-      const [entries, todos, events] = await Promise.all([
+      const [entries, todos, events, period] = await Promise.all([
         storage.listEntries(),
         storage.listTodos(),
         storage.listEvents(),
+        storage.getPeriod(),
       ]);
+
+      // One-time migration: fold existing Todos into calendar tasks. The
+      // migrated event's id is derived from the todo's, so this is idempotent
+      // across reloads — the underlying `todos` store is left untouched.
+      const existingIds = new Set(events.map((e) => e.id));
+      const migrated: CalendarEvent[] = [];
+      for (const t of todos) {
+        const evId = `todo-${t.id}`;
+        if (existingIds.has(evId)) continue;
+        migrated.push({
+          id: evId,
+          projectId: t.projectId,
+          title: t.text,
+          date: t.dueDate ?? toDateKey(new Date()),
+          kind: 'task',
+          done: t.done,
+        });
+      }
+      for (const ev of migrated) await storage.saveEvent(ev);
+
       set({
         projects,
         configsByProject,
@@ -155,9 +187,10 @@ export const useStore = create<AppState>((set, get) => ({
         config: configsByProject[activeProjectId],
         entries,
         todos,
-        events,
+        events: [...events, ...migrated],
         customPresets,
         folders,
+        period: period ?? null,
         ready: true,
       });
     })();
@@ -268,9 +301,9 @@ export const useStore = create<AppState>((set, get) => ({
     set({ activeProjectId: id, config });
   },
 
-  async addEntry(input, attachments = []) {
+  async addEntry(input, attachments = [], projectId) {
     const id = uid();
-    const projectId = get().activeProjectId;
+    projectId = projectId ?? get().activeProjectId;
     const ts = nowIso();
     const attachmentIds: string[] = [];
     for (const a of attachments) {
@@ -482,14 +515,28 @@ export const useStore = create<AppState>((set, get) => ({
     set({ todos: get().todos.filter((x) => x.id !== id) });
   },
 
-  async addEvent(title, date, note) {
-    const ev: CalendarEvent = { id: uid(), projectId: get().activeProjectId, title, date, note };
+  async addCalendarItem(input) {
+    const ev: CalendarEvent = { id: uid(), ...input };
     await storage.saveEvent(ev);
     set({ events: [...get().events, ev] });
+    return ev;
+  },
+  async toggleCalendarEvent(id) {
+    const e = get().events.find((x) => x.id === id);
+    if (!e) return;
+    const updated = { ...e, done: !e.done };
+    await storage.saveEvent(updated);
+    set({ events: get().events.map((x) => (x.id === id ? updated : x)) });
   },
   async deleteEvent(id) {
     await storage.deleteEvent(id);
     set({ events: get().events.filter((x) => x.id !== id) });
+  },
+
+  async savePeriod(period) {
+    const full: Period = { id: 'global', ...period };
+    await storage.savePeriod(full);
+    set({ period: full });
   },
 
   exportBundle() {
@@ -583,7 +630,7 @@ export const useStore = create<AppState>((set, get) => ({
     for (const id of demoIds) delete configsByProject[id];
     const entries = get().entries.filter((e) => !demoIds.has(e.projectId));
     const todos = get().todos.filter((t) => !demoIds.has(t.projectId));
-    const events = get().events.filter((e) => !demoIds.has(e.projectId));
+    const events = get().events.filter((e) => !e.projectId || !demoIds.has(e.projectId));
 
     let activeProjectId = get().activeProjectId;
     let config = get().config;

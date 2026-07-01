@@ -48,12 +48,34 @@ export interface Todo {
   createdAt: string;
 }
 
+export type CalendarItemKind = 'event' | 'task';
+
 export interface CalendarEvent {
   id: string;
-  projectId: string;
+  projectId?: string; // absent => project-less / general
   title: string;
-  date: string; // ISO date (YYYY-MM-DD)
+  date: string; // ISO date (YYYY-MM-DD) — start date
+  endDate?: string; // ISO date — inclusive end date; absent/equal to `date` = single-day
+  time?: string; // HH:mm, optional
+  reminder?: boolean;
+  kind: CalendarItemKind;
+  done?: boolean; // only meaningful when kind === 'task'
+  categoryId?: string; // only meaningful when projectId is set
+  recurrence?: {
+    freq: 'weekly';
+    until: string; // ISO date — stop recurring after this date
+    excludeDates?: string[]; // dates skipped (e.g. break weeks)
+  };
   note?: string;
+}
+
+/** A single, global, app-wide term/period made of numbered weeks with break weeks. */
+export interface Period {
+  id: string; // singleton — always 'global'
+  startDate: string; // ISO date — Week 1 start (a Monday)
+  weekCount: number;
+  breakWeeks: number[]; // 1-based week numbers marked as break/study-vacation weeks
+  labels?: Record<number, string>; // optional custom label per week number
 }
 
 export interface Config {
