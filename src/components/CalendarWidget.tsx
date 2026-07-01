@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../store';
 import type { CalendarEvent } from '../types';
-import { INBOX_ID } from '../types';
 import { fromDateKey, toDateKey } from '../lib/id';
 import { projectColor } from '../lib/projectColor';
 import { categoryColor } from '../lib/categories';
@@ -18,6 +17,8 @@ import {
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const DAY_MS = 86_400_000;
 const NONE_FILTER = '__none__';
+const BAR_ROW_H = 20; // px per multi-day bar lane, incl. gap
+const BAR_GRID_TOP = '26px'; // aligns bars just below the day number
 
 type Segment = 'single' | 'start' | 'end' | 'middle';
 type Occurrence = { event: CalendarEvent; segment: Segment };
@@ -57,6 +58,41 @@ function buildOccurrenceMap(
   return map;
 }
 
+type Bar = { event: CalendarEvent; startCol: number; endCol: number; lane: number };
+
+/** Lays out multi-day (non-recurring) events spanning this week's 7 date keys into non-overlapping lanes. */
+function computeWeekBars(weekKeys: string[], events: CalendarEvent[]): Bar[] {
+  const weekStart = weekKeys[0];
+  const weekEnd = weekKeys[6];
+  const spans: { event: CalendarEvent; startCol: number; endCol: number }[] = [];
+  for (const e of events) {
+    if (e.recurrence?.freq === 'weekly') continue;
+    const end = e.endDate ?? e.date;
+    if (end === e.date) continue; // single-day, rendered as a normal chip
+    if (end < weekStart || e.date > weekEnd) continue;
+    const clippedStart = e.date > weekStart ? e.date : weekStart;
+    const clippedEnd = end < weekEnd ? end : weekEnd;
+    const startCol = weekKeys.indexOf(clippedStart);
+    const endCol = weekKeys.indexOf(clippedEnd);
+    if (startCol === -1 || endCol === -1) continue;
+    spans.push({ event: e, startCol, endCol });
+  }
+  spans.sort((a, b) => a.startCol - b.startCol || a.endCol - b.endCol);
+  const laneEnds: number[] = [];
+  const bars: Bar[] = [];
+  for (const s of spans) {
+    let lane = laneEnds.findIndex((endCol) => endCol < s.startCol);
+    if (lane === -1) {
+      lane = laneEnds.length;
+      laneEnds.push(s.endCol);
+    } else {
+      laneEnds[lane] = s.endCol;
+    }
+    bars.push({ ...s, lane });
+  }
+  return bars;
+}
+
 export default function CalendarWidget() {
   const projects = useStore((s) => s.projects);
   const activeProjectId = useStore((s) => s.activeProjectId);
@@ -68,6 +104,7 @@ export default function CalendarWidget() {
   const toggleCalendarEvent = useStore((s) => s.toggleCalendarEvent);
   const deleteEvent = useStore((s) => s.deleteEvent);
   const savePeriod = useStore((s) => s.savePeriod);
+  const resetPeriod = useStore((s) => s.resetPeriod);
 
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'agenda'>('month');
   const [view, setView] = useState(() => {
@@ -76,8 +113,32 @@ export default function CalendarWidget() {
   });
   const [weekStartDate, setWeekStartDate] = useState(() => snapToMonday(toDateKey(new Date())));
   const [selected, setSelected] = useState<string | null>(null);
+  const [displayedDay, setDisplayedDay] = useState<string | null>(null);
   const [rangeAnchor, setRangeAnchor] = useState<string | null>(null);
   const [filters, setFilters] = useState<Set<string>>(new Set());
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const panelRef = useRef<HTMLElement>(null);
+  const filtersRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleDocPointerDown(e: MouseEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setSelected(null);
+        setRangeAnchor(null);
+      }
+      if (filtersRef.current && !filtersRef.current.contains(e.target as Node)) {
+        setFiltersOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleDocPointerDown);
+    return () => document.removeEventListener('mousedown', handleDocPointerDown);
+  }, []);
+
+  // Keeps the last-open day's content mounted while the panel collapses, so the
+  // accordion shrink animates smoothly instead of the content vanishing instantly.
+  useEffect(() => {
+    if (selected) setDisplayedDay(selected);
+  }, [selected]);
 
   // Add-item form
   const [kind, setKind] = useState<CalendarEvent['kind']>('event');
@@ -87,7 +148,6 @@ export default function CalendarWidget() {
   const [time, setTime] = useState('');
   const [reminder, setReminder] = useState(false);
   const [formProjectId, setFormProjectId] = useState('');
-  const [categoryId, setCategoryId] = useState('');
   const [repeatsWeekly, setRepeatsWeekly] = useState(false);
   const [until, setUntil] = useState('');
 
@@ -97,6 +157,7 @@ export default function CalendarWidget() {
   const [draftStart, setDraftStart] = useState('');
   const [draftWeeks, setDraftWeeks] = useState(12);
   const [draftBreaks, setDraftBreaks] = useState<number[]>([]);
+  const [draftCountBreaks, setDraftCountBreaks] = useState(true);
   const [draftLabels, setDraftLabels] = useState<Record<number, string>>({});
   const [labelWeekInput, setLabelWeekInput] = useState('');
   const [labelTextInput, setLabelTextInput] = useState('');
@@ -113,7 +174,14 @@ export default function CalendarWidget() {
       setDraftStart(period.startDate);
       setDraftWeeks(period.weekCount);
       setDraftBreaks(period.breakWeeks);
+      setDraftCountBreaks(period.countBreaks !== false);
       setDraftLabels(period.labels ?? {});
+    } else {
+      setDraftStart('');
+      setDraftWeeks(12);
+      setDraftBreaks([]);
+      setDraftCountBreaks(true);
+      setDraftLabels({});
     }
   }, [period]);
 
@@ -142,21 +210,18 @@ export default function CalendarWidget() {
     return projects.find((p) => p.id === id)?.name ?? 'Unknown';
   }
 
-  function categoriesForProject(id: string) {
-    return (configsByProject[id]?.categories ?? []).filter((c) => c.id !== INBOX_ID);
-  }
-
   // ---- Month grid ----
   const first = new Date(view.year, view.month, 1);
   const startOffset = (first.getDay() + 6) % 7; // Monday-first
   const daysInMonth = new Date(view.year, view.month + 1, 0).getDate();
   const monthLabel = first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
-  const cells: (string | null)[] = [];
-  for (let i = 0; i < startOffset; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(toDateKey(new Date(view.year, view.month, d)));
-  while (cells.length % 7 !== 0) cells.push(null);
-  const weeks: (string | null)[][] = [];
+  type MonthCell = { key: string; outside: boolean };
+  const cells: MonthCell[] = [];
+  for (let i = startOffset; i > 0; i--) cells.push({ key: toDateKey(new Date(view.year, view.month, 1 - i)), outside: true });
+  for (let d = 1; d <= daysInMonth; d++) cells.push({ key: toDateKey(new Date(view.year, view.month, d)), outside: false });
+  for (let d = 1; cells.length % 7 !== 0; d++) cells.push({ key: toDateKey(new Date(view.year, view.month + 1, d)), outside: true });
+  const weeks: MonthCell[][] = [];
   for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
 
   const monthOccurrenceMap = useMemo(
@@ -193,6 +258,7 @@ export default function CalendarWidget() {
 
   // ---- Week view ----
   const weekDays = Array.from({ length: 7 }, (_, i) => toDateKey(new Date(fromDateKey(weekStartDate).getTime() + i * DAY_MS)));
+  const weekViewNum = period ? weekNumberForDate(period, weekDays[0]) : null;
   const weekOccurrenceMap = useMemo(
     () => buildOccurrenceMap(activeEvents, fromDateKey(weekDays[0]), fromDateKey(weekDays[6])),
     [activeEvents, weekStartDate]
@@ -232,7 +298,6 @@ export default function CalendarWidget() {
       kind,
       done: kind === 'task' ? false : undefined,
       projectId: formProjectId || undefined,
-      categoryId: formProjectId && categoryId ? categoryId : undefined,
       recurrence,
     });
     setTitle('');
@@ -240,7 +305,6 @@ export default function CalendarWidget() {
     setReminder(false);
     setRepeatsWeekly(false);
     setUntil('');
-    setCategoryId('');
   }
 
   function savePeriodDraft() {
@@ -249,9 +313,16 @@ export default function CalendarWidget() {
       startDate: snapToMonday(draftStart),
       weekCount: draftWeeks,
       breakWeeks: draftBreaks,
+      countBreaks: draftCountBreaks,
       labels: Object.keys(draftLabels).length ? draftLabels : undefined,
     });
     setPeriodOpen(false);
+  }
+
+  function resetTerm() {
+    if (!period) return;
+    if (!confirm('Clear the term? The calendar goes back to needing a new term set up. This cannot be undone.')) return;
+    void resetPeriod();
   }
 
   function setLabel() {
@@ -265,6 +336,19 @@ export default function CalendarWidget() {
     });
     setLabelWeekInput('');
     setLabelTextInput('');
+  }
+
+  function editLabel(week: number, text: string) {
+    setLabelWeekInput(String(week));
+    setLabelTextInput(text);
+  }
+
+  function removeLabel(week: number) {
+    setDraftLabels((l) => {
+      const next = { ...l };
+      delete next[week];
+      return next;
+    });
   }
 
   function renderChip(occ: Occurrence, small: boolean) {
@@ -291,28 +375,37 @@ export default function CalendarWidget() {
   }
 
   return (
-    <section className="panel card cal-panel">
-      <div className="cal-filters">
-        {projects.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            className={`cal-filter-chip ${filters.has(p.id) ? 'is-off' : ''}`}
-            style={{ '--chip-color': projectColor(projects, p.id) } as React.CSSProperties}
-            onClick={() => toggleFilter(p.id)}
-          >
-            <span className="cal-filter-dot" />
-            {p.name}
-          </button>
-        ))}
-        <button
-          type="button"
-          className={`cal-filter-chip ${filters.has(NONE_FILTER) ? 'is-off' : ''}`}
-          onClick={() => toggleFilter(NONE_FILTER)}
-        >
-          <span className="cal-filter-dot" style={{ background: 'var(--color-muted)' }} />
-          No project
+    <section className="panel card cal-panel" ref={panelRef}>
+      <div className="cal-filters-bar" ref={filtersRef}>
+        <button type="button" className="cal-filters-toggle t-caption-sm" onClick={() => setFiltersOpen((o) => !o)}>
+          Filter projects
+          {filters.size > 0 && <span className="cal-filters-badge">{filters.size} hidden</span>}
+          <span className="cal-filters-caret">{filtersOpen ? '▾' : '▸'}</span>
         </button>
+        <div className={`cal-filters-panel ${filtersOpen ? 'is-open' : ''}`} aria-hidden={!filtersOpen}>
+          {projects.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              tabIndex={filtersOpen ? 0 : -1}
+              className={`cal-filter-chip ${filters.has(p.id) ? 'is-off' : ''}`}
+              style={{ '--chip-color': projectColor(projects, p.id) } as React.CSSProperties}
+              onClick={() => toggleFilter(p.id)}
+            >
+              <span className="cal-filter-dot" />
+              {p.name}
+            </button>
+          ))}
+          <button
+            type="button"
+            tabIndex={filtersOpen ? 0 : -1}
+            className={`cal-filter-chip ${filters.has(NONE_FILTER) ? 'is-off' : ''}`}
+            onClick={() => toggleFilter(NONE_FILTER)}
+          >
+            <span className="cal-filter-dot" style={{ background: 'var(--color-muted)' }} />
+            No project
+          </button>
+        </div>
       </div>
 
       <div className="cal-head">
@@ -334,6 +427,11 @@ export default function CalendarWidget() {
             <h3 className="panel-title t-title">
               {fromDateKey(weekDays[0]).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} –{' '}
               {fromDateKey(weekDays[6]).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+              {weekViewNum && (
+                <span className={`cal-week-view-badge t-caption-sm ${isBreakWeek(period!, weekViewNum) ? 'is-break' : ''}`}>
+                  {weekLabel(period!, weekViewNum)}
+                </span>
+              )}
             </h3>
             <div className="cal-nav">
               <button className="cal-nav-btn" onClick={() => shiftWeek(-1)} aria-label="Previous week">
@@ -370,8 +468,11 @@ export default function CalendarWidget() {
             ))}
           </div>
           {weeks.map((week, wi) => {
-            const firstDay = week.find((d): d is string => !!d);
+            const firstDay = week[0]?.key;
             const weekNum = period && firstDay ? weekNumberForDate(period, firstDay) : null;
+            const weekKeys = week.map((c) => c.key);
+            const bars = computeWeekBars(weekKeys, activeEvents);
+            const laneCount = bars.reduce((m, b) => Math.max(m, b.lane + 1), 0);
             return (
               <div className="cal-week-row" key={wi}>
                 {period && (
@@ -383,29 +484,60 @@ export default function CalendarWidget() {
                     {weekNum ? weekLabel(period, weekNum) : ''}
                   </div>
                 )}
-                <div className="cal-grid">
-                  {week.map((key, di) => {
-                    if (!key) return <div key={di} className="cal-cell cal-empty" />;
-                    const items = monthOccurrenceMap.get(key) ?? [];
-                    const visible = items.slice(0, 3);
-                    const overflow = items.length - visible.length;
-                    return (
-                      <button
-                        key={di}
-                        type="button"
-                        className={`cal-cell ${key === todayKey ? 'is-today' : ''} ${key === selected ? 'is-selected' : ''} ${
-                          key === rangeAnchor ? 'is-armed' : ''
-                        }`}
-                        onClick={() => handleCellClick(key)}
-                      >
-                        <span className="cal-cell-num">{fromDateKey(key).getDate()}</span>
-                        <span className="cal-cell-chips">
-                          {visible.map((occ) => renderChip(occ, true))}
-                          {overflow > 0 && <span className="cal-chip-more t-caption-sm muted">+{overflow} more</span>}
+                <div className="cal-week-grid-wrap">
+                  <div className="cal-grid">
+                    {week.map(({ key, outside }, di) => {
+                      if (outside) {
+                        return (
+                          <div key={di} className="cal-cell cal-outside">
+                            <span className="cal-cell-num">{fromDateKey(key).getDate()}</span>
+                          </div>
+                        );
+                      }
+                      const items = (monthOccurrenceMap.get(key) ?? []).filter((occ) => occ.segment === 'single');
+                      const visible = items.slice(0, 3);
+                      const overflow = items.length - visible.length;
+                      return (
+                        <button
+                          key={di}
+                          type="button"
+                          className={`cal-cell ${key === todayKey ? 'is-today' : ''} ${key === selected ? 'is-selected' : ''} ${
+                            key === rangeAnchor ? 'is-armed' : ''
+                          }`}
+                          onClick={() => handleCellClick(key)}
+                        >
+                          <span className="cal-cell-num">{fromDateKey(key).getDate()}</span>
+                          <span className="cal-cell-chips" style={laneCount ? { marginTop: laneCount * BAR_ROW_H } : undefined}>
+                            {visible.map((occ) => renderChip(occ, true))}
+                            {overflow > 0 && <span className="cal-chip-more t-caption-sm muted">+{overflow} more</span>}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {bars.length > 0 && (
+                    <div className="cal-grid cal-bar-grid" style={{ top: BAR_GRID_TOP, gridTemplateRows: `repeat(${laneCount}, ${BAR_ROW_H}px)` }}>
+                      {bars.map((b) => (
+                        <span
+                          key={b.event.id}
+                          className="cal-chip cal-chip-bar"
+                          style={
+                            {
+                              '--chip-color': projectColor(projects, b.event.projectId),
+                              gridColumn: `${b.startCol + 1} / ${b.endCol + 2}`,
+                              gridRow: b.lane + 1,
+                            } as React.CSSProperties
+                          }
+                          title={b.event.title}
+                          onClick={() => openDay(b.event.date)}
+                        >
+                          {b.event.kind === 'task' && <span className="cal-chip-check">{b.event.done ? '✓' : ''}</span>}
+                          <span className="cal-chip-title">{b.event.title}</span>
+                          {b.event.reminder && <span className="cal-reminder-dot" />}
                         </span>
-                      </button>
-                    );
-                  })}
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -462,15 +594,17 @@ export default function CalendarWidget() {
         </div>
       )}
 
-      {selected && (
+      <div className={`cal-collapse ${selected ? 'is-open' : ''}`}>
+        <div className="cal-collapse-inner">
+          {displayedDay && (
         <div className="cal-events">
           <div className="cal-events-head">
             <span className="t-caption-sm muted">
-              {selected}
+              {displayedDay}
               {formEndDate && formEndDate !== formDate ? ` → ${formEndDate}` : ''}
             </span>
           </div>
-          {(monthOccurrenceMap.get(selected) ?? weekOccurrenceMap.get(selected) ?? []).map((occ) => (
+          {(monthOccurrenceMap.get(displayedDay) ?? weekOccurrenceMap.get(displayedDay) ?? []).map((occ) => (
             <div key={occ.event.id + occ.segment} className="cal-event">
               {occ.event.kind === 'task' ? (
                 <label className="todo-check">
@@ -514,16 +648,6 @@ export default function CalendarWidget() {
                 </option>
               ))}
             </select>
-            {formProjectId && categoriesForProject(formProjectId).length > 0 && (
-              <select className="input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-                <option value="">No category</option>
-                {categoriesForProject(formProjectId).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            )}
             <input
               className="input"
               type="date"
@@ -566,13 +690,16 @@ export default function CalendarWidget() {
             </button>
           </div>
         </div>
-      )}
+          )}
+        </div>
+      </div>
 
       <div className="cal-period">
         <button type="button" className="cal-period-toggle t-caption" onClick={() => setPeriodOpen((o) => !o)}>
           Term settings {periodOpen ? '▾' : '▸'}
         </button>
-        {periodOpen && (
+        <div className={`cal-collapse ${periodOpen ? 'is-open' : ''}`}>
+          <div className="cal-collapse-inner">
           <div className="cal-period-body">
             <div className="cal-period-fields">
               <label className="t-caption-sm muted">
@@ -596,10 +723,22 @@ export default function CalendarWidget() {
                   onChange={(e) => setDraftWeeks(Math.max(1, Number(e.target.value) || 1))}
                 />
               </label>
+              <label className="cal-period-checkbox t-caption-sm muted">
+                <input
+                  type="checkbox"
+                  checked={draftCountBreaks}
+                  onChange={(e) => setDraftCountBreaks(e.target.checked)}
+                />
+                Count breaks
+              </label>
             </div>
             <div className="cal-period-weeks">
               {Array.from({ length: draftWeeks }, (_, i) => i + 1).map((wk) => {
                 const isBreak = draftBreaks.includes(wk);
+                const label = weekLabel(
+                  { breakWeeks: draftBreaks, labels: draftLabels, countBreaks: draftCountBreaks },
+                  wk
+                );
                 return (
                   <button
                     key={wk}
@@ -607,7 +746,7 @@ export default function CalendarWidget() {
                     className={`cal-period-week-pill ${isBreak ? 'is-break' : ''}`}
                     onClick={() => setDraftBreaks((b) => (isBreak ? b.filter((x) => x !== wk) : [...b, wk]))}
                   >
-                    {draftLabels[wk] ?? (isBreak ? 'Break' : `Wk ${wk}`)}
+                    {label}
                   </button>
                 );
               })}
@@ -632,11 +771,41 @@ export default function CalendarWidget() {
                 Set label
               </button>
             </div>
-            <button type="button" className="btn btn-primary btn-pill btn-sm" onClick={savePeriodDraft}>
-              Save term
-            </button>
+            {Object.keys(draftLabels).length > 0 && (
+              <div className="cal-period-labels">
+                {Object.entries(draftLabels)
+                  .map(([wk, text]) => [Number(wk), text] as [number, string])
+                  .sort((a, b) => a[0] - b[0])
+                  .map(([wk, text]) => (
+                    <div key={wk} className="cal-period-label-chip">
+                      <button type="button" className="cal-period-label-edit" onClick={() => editLabel(wk, text)}>
+                        <strong>Wk {wk}</strong> {text}
+                      </button>
+                      <button
+                        type="button"
+                        className="cal-period-label-remove"
+                        onClick={() => removeLabel(wk)}
+                        aria-label={`Remove label for week ${wk}`}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            )}
+            <div className="cal-period-actions">
+              <button type="button" className="btn btn-primary btn-pill btn-sm" onClick={savePeriodDraft}>
+                Save term
+              </button>
+              {period && (
+                <button type="button" className="btn btn-danger btn-sm" onClick={resetTerm}>
+                  Clear term
+                </button>
+              )}
+            </div>
           </div>
-        )}
+          </div>
+        </div>
       </div>
     </section>
   );
