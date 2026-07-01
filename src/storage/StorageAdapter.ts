@@ -76,6 +76,7 @@ export interface StorageAdapter {
   /** The single, app-wide term/period. Singleton read/write, not a list. */
   getPeriod(): Promise<Period | undefined>;
   savePeriod(period: Period): Promise<void>;
+  clearPeriod(): Promise<void>;
 
   exportAll(): Promise<LogbookBundle>;
   importAll(bundle: LogbookBundle): Promise<void>;

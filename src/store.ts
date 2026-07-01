@@ -99,6 +99,8 @@ interface AppState {
 
   // term / period (global singleton)
   savePeriod: (period: Omit<Period, 'id'>) => Promise<void>;
+  /** Resets the term's dates/weeks/breaks/labels back to factory defaults. */
+  resetPeriod: () => Promise<void>;
 
   // export / import
   exportBundle: () => Promise<LogbookBundle>;
@@ -537,6 +539,12 @@ export const useStore = create<AppState>((set, get) => ({
     const full: Period = { id: 'global', ...period };
     await storage.savePeriod(full);
     set({ period: full });
+  },
+
+  async resetPeriod() {
+    if (!get().period) return;
+    await storage.clearPeriod();
+    set({ period: null });
   },
 
   exportBundle() {

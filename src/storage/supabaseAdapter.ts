@@ -110,6 +110,7 @@ function rowToPeriod(r: Record<string, unknown>): Period {
     startDate: r.start_date as string,
     weekCount: r.week_count as number,
     breakWeeks: (r.break_weeks as number[]) ?? [],
+    countBreaks: (r.count_breaks as boolean | null) ?? undefined,
     labels: (r.labels as Record<number, string> | null) ?? undefined,
   };
 }
@@ -340,8 +341,14 @@ export const supabaseAdapter: StorageAdapter = {
       start_date: period.startDate,
       week_count: period.weekCount,
       break_weeks: period.breakWeeks,
+      count_breaks: period.countBreaks ?? null,
       labels: period.labels ?? null,
     });
+    if (error) throw error;
+  },
+  async clearPeriod() {
+    const uid = await userId();
+    const { error } = await supabase.from('periods').delete().eq('user_id', uid);
     if (error) throw error;
   },
 

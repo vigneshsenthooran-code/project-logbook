@@ -38,13 +38,22 @@ export function weekNumberForDate(period: Period, dateKey: string): number | nul
   return week;
 }
 
-export function isBreakWeek(period: Period, weekNumber: number): boolean {
+type LabelablePeriod = Pick<Period, 'breakWeeks' | 'labels' | 'countBreaks'>;
+
+export function isBreakWeek(period: Pick<Period, 'breakWeeks'>, weekNumber: number): boolean {
   return period.breakWeeks.includes(weekNumber);
 }
 
-export function weekLabel(period: Period, weekNumber: number): string {
+/** 1-based week number a break week would keep if it consumed no slot — used for display only. */
+function skipBreaksNumber(period: LabelablePeriod, weekNumber: number): number {
+  const skipped = period.breakWeeks.filter((wk) => wk < weekNumber).length;
+  return weekNumber - skipped;
+}
+
+export function weekLabel(period: LabelablePeriod, weekNumber: number): string {
   if (period.labels?.[weekNumber]) return period.labels[weekNumber];
   if (isBreakWeek(period, weekNumber)) return 'Break';
+  if (period.countBreaks === false) return `Wk ${skipBreaksNumber(period, weekNumber)}`;
   return `Wk ${weekNumber}`;
 }
 

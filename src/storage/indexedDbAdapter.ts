@@ -184,6 +184,9 @@ export const indexedDbAdapter: StorageAdapter = {
   async savePeriod(period) {
     await (await db()).put('period', period, PERIOD_KEY);
   },
+  async clearPeriod() {
+    await (await db()).delete('period', PERIOD_KEY);
+  },
 
   async exportProject(projectId) {
     const database = await db();

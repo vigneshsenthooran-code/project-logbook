@@ -99,6 +99,7 @@ create table if not exists periods (
   start_date date not null,
   week_count integer not null,
   break_weeks integer[] not null default '{}',
+  count_breaks boolean,
   labels jsonb
 );
 

@@ -75,6 +75,7 @@ export interface Period {
   startDate: string; // ISO date — Week 1 start (a Monday)
   weekCount: number;
   breakWeeks: number[]; // 1-based week numbers marked as break/study-vacation weeks
+  countBreaks?: boolean; // default true — false skips break weeks when numbering later weeks
   labels?: Record<number, string>; // optional custom label per week number
 }
 
