@@ -90,9 +90,6 @@ export default function ProjectTile({
               <button className="btn btn-ghost btn-sm" onClick={onArchiveToggle}>
                 {project.archived ? 'Unarchive' : 'Archive'}
               </button>
-              <button className="btn btn-ghost btn-sm project-tile-del" onClick={onDelete}>
-                Delete
-              </button>
             </div>
 
             {folders.length > 0 && (
@@ -110,6 +107,10 @@ export default function ProjectTile({
                 ))}
               </select>
             )}
+
+            <button className="btn btn-danger-ghost btn-sm project-tile-del" onClick={onDelete}>
+              🗑 Delete
+            </button>
           </div>
         </div>
       </div>

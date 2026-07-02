@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Category, EntryType } from '../types';
 import { rankCategories } from '../lib/categorize';
 import { subHeadings, topCategories } from '../lib/categories';
@@ -53,9 +54,9 @@ export default function CategoryConfirmModal({
     setSubHeadingId(undefined);
   }
 
-  return (
-    <div className="scrim" onClick={onCancel}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+  return createPortal(
+    <div className="scrim modal-in" onClick={onCancel}>
+      <div className="modal modal-in" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h2 className="t-display-sm">{initial ? 'Edit filing' : 'File this entry'}</h2>
           <p className="t-body-sm muted">
@@ -163,6 +164,7 @@ export default function CategoryConfirmModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

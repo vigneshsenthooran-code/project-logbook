@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Category, Entry } from '../types';
 import { useStore } from '../store';
 import { categoryName } from '../lib/categories';
 import { isImageMime, isPdfMime, isTextMime } from '../lib/file';
+import { fetchLinkMeta } from '../lib/linkMeta';
 
 function formatDayMonth(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
@@ -18,13 +19,28 @@ export default function EntryCard({
   onView: (e: Entry) => void;
 }) {
   const getAttachment = useStore((s) => s.getAttachment);
+  const updateEntry = useStore((s) => s.updateEntry);
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
   const [thumbMime, setThumbMime] = useState<string | null>(null);
   const [thumbName, setThumbName] = useState<string | null>(null);
   const [thumbText, setThumbText] = useState<string | null>(null);
+  const backfillingLink = useRef(false);
 
   const cat = categories.find((c) => c.id === entry.categoryId);
   const sub = entry.subHeadingId ? categories.find((c) => c.id === entry.subHeadingId) : undefined;
+
+  // Older/seeded link entries were saved without a fetched thumbnail — backfill
+  // it lazily on view so their cards get a real preview instead of the emoji placeholder.
+  useEffect(() => {
+    if (entry.type !== 'link' || !entry.link || entry.link.thumbnailUrl || backfillingLink.current) return;
+    backfillingLink.current = true;
+    void fetchLinkMeta(entry.link.url).then((meta) => {
+      if (!meta.thumbnailUrl) return;
+      void updateEntry(entry.id, {
+        link: { ...entry.link!, title: entry.link!.title ?? meta.title, thumbnailUrl: meta.thumbnailUrl },
+      });
+    });
+  }, [entry, updateEntry]);
 
   useEffect(() => {
     let url: string | null = null;

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useStore } from '../store';
-import type { EntryType, Folder, LinkMeta, Project } from '../types';
+import type { EntryType, LinkMeta } from '../types';
 import { fetchLinkMeta } from '../lib/linkMeta';
+import { groupProjects } from '../lib/groupProjects';
 import CategoryConfirmModal, { type FilingResult } from './CategoryConfirmModal';
 import DecorMark from './DecorMark';
 import ComposerHint from './ComposerHint';
@@ -17,19 +19,6 @@ const TABS: { type: EntryType; label: string; icon: string }[] = [
 
 const URL_RE = /^https?:\/\/\S+$/i;
 
-/** Groups active projects under their folder (folder.order order), with a trailing Unfiled section. */
-function groupProjects(projects: Project[], folders: Folder[]) {
-  const active = projects.filter((p) => !p.archived);
-  const groups: { key: string; label: string; projects: Project[] }[] = [];
-  for (const f of [...folders].sort((a, b) => a.order - b.order)) {
-    const inFolder = active.filter((p) => p.folderId === f.id);
-    if (inFolder.length > 0) groups.push({ key: f.id, label: f.name, projects: inFolder });
-  }
-  const unfiled = active.filter((p) => !p.folderId);
-  if (unfiled.length > 0) groups.push({ key: '__unfiled__', label: 'Unfiled', projects: unfiled });
-  return groups;
-}
-
 export default function EntryComposer() {
   const projects = useStore((s) => s.projects);
   const folders = useStore((s) => s.folders);
@@ -40,6 +29,7 @@ export default function EntryComposer() {
   const [expanded, setExpanded] = useState(false);
   const [targetProjectId, setTargetProjectId] = useState(activeProjectId);
   const [projectPickerOpen, setProjectPickerOpen] = useState(false);
+  const [projectDropdownPos, setProjectDropdownPos] = useState<{ left: number; bottom: number } | null>(null);
 
   const [type, setType] = useState<EntryType>('text');
   const [body, setBody] = useState('');
@@ -51,6 +41,7 @@ export default function EntryComposer() {
   const fileInput = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const projectPickerRef = useRef<HTMLDivElement>(null);
+  const projectDropdownRef = useRef<HTMLDivElement>(null);
   const collapsedInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -68,10 +59,15 @@ export default function EntryComposer() {
   }, [expanded]);
 
   // Click-outside / Escape collapse back to the pill — but never while there's an unsaved draft.
+  // The project dropdown is portaled to <body>, so a click inside it isn't a
+  // DOM descendant of rootRef either — treat it as "inside" too.
   useEffect(() => {
     if (!expanded) return;
     function onPointerDown(e: MouseEvent) {
-      if (isEmpty && rootRef.current && !rootRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const insideRoot = rootRef.current?.contains(target);
+      const insideDropdown = projectDropdownRef.current?.contains(target);
+      if (isEmpty && !insideRoot && !insideDropdown) {
         setExpanded(false);
         setProjectPickerOpen(false);
       }
@@ -91,15 +87,34 @@ export default function EntryComposer() {
   }, [expanded, isEmpty]);
 
   // The project picker dropdown closes on outside click independent of draft state.
+  // It's portaled to <body>, so "inside" means either the anchor button or the
+  // portaled dropdown itself — neither is a DOM descendant of the other.
   useEffect(() => {
     if (!projectPickerOpen) return;
     function onPointerDown(e: MouseEvent) {
-      if (projectPickerRef.current && !projectPickerRef.current.contains(e.target as Node)) {
-        setProjectPickerOpen(false);
-      }
+      const target = e.target as Node;
+      const insideAnchor = projectPickerRef.current?.contains(target);
+      const insideDropdown = projectDropdownRef.current?.contains(target);
+      if (!insideAnchor && !insideDropdown) setProjectPickerOpen(false);
     }
     document.addEventListener('mousedown', onPointerDown);
     return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [projectPickerOpen]);
+
+  // The composer's own card scrolls internally and would clip a plain
+  // absolutely-positioned dropdown, so it's portaled to <body> and positioned
+  // from the anchor's viewport rect instead — recomputed on resize while open.
+  useEffect(() => {
+    if (!projectPickerOpen) return;
+    function reposition() {
+      const el = projectPickerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      setProjectDropdownPos({ left: rect.left, bottom: window.innerHeight - rect.top + 10 });
+    }
+    reposition();
+    window.addEventListener('resize', reposition);
+    return () => window.removeEventListener('resize', reposition);
   }, [projectPickerOpen]);
 
   const config = configsByProject[targetProjectId] ?? configsByProject[activeProjectId];
@@ -313,7 +328,10 @@ export default function EntryComposer() {
               value={body}
               onChange={(e) => setBody(e.target.value)}
               onKeyDown={(e) => {
-                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canSubmit) setConfirming(true);
+                if (e.key !== 'Enter' || e.shiftKey) return;
+                if (!canSubmit) return;
+                e.preventDefault();
+                setConfirming(true);
               }}
               tabIndex={expanded ? 0 : -1}
             />
@@ -326,27 +344,34 @@ export default function EntryComposer() {
               <button className="composer-foot-project-btn" onClick={() => setProjectPickerOpen((v) => !v)}>
                 Filed into <strong>{targetProject.name}</strong>
               </button>
-              {projectPickerOpen && (
-                <div className="composer-project-dropdown">
-                  {projectGroups.map((g) => (
-                    <div key={g.key}>
-                      <div className="composer-project-group-label">{g.label}</div>
-                      {g.projects.map((p) => (
-                        <button
-                          key={p.id}
-                          className={`composer-project-option ${p.id === targetProjectId ? 'is-active' : ''}`}
-                          onClick={() => {
-                            setTargetProjectId(p.id);
-                            setProjectPickerOpen(false);
-                          }}
-                        >
-                          {p.name}
-                        </button>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              )}
+              {projectPickerOpen &&
+                projectDropdownPos &&
+                createPortal(
+                  <div
+                    ref={projectDropdownRef}
+                    className="composer-project-dropdown"
+                    style={{ left: projectDropdownPos.left, bottom: projectDropdownPos.bottom }}
+                  >
+                    {projectGroups.map((g) => (
+                      <div key={g.key}>
+                        <div className="composer-project-group-label">{g.label}</div>
+                        {g.projects.map((p) => (
+                          <button
+                            key={p.id}
+                            className={`composer-project-option ${p.id === targetProjectId ? 'is-active' : ''}`}
+                            onClick={() => {
+                              setTargetProjectId(p.id);
+                              setProjectPickerOpen(false);
+                            }}
+                          >
+                            {p.name}
+                          </button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>,
+                  document.body
+                )}
             </div>
             <button
               className="composer-submit-btn"

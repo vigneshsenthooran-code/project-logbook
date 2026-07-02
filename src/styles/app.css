@@ -797,6 +797,31 @@
 .project-switcher-empty {
   padding: var(--s-lg);
 }
+.project-switcher-group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-xs);
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: var(--s-sm) var(--s-lg);
+  flex-shrink: 0;
+}
+.project-switcher-group-head:hover {
+  color: var(--color-ink);
+}
+.project-switcher-group-name {
+  color: inherit;
+}
+.project-switcher-group-count {
+  color: var(--color-muted-soft);
+}
 
 .dashboard-body {
   max-width: 1280px;
@@ -1120,9 +1145,8 @@
   color: var(--color-primary);
 }
 .composer-project-dropdown {
-  position: absolute;
-  bottom: calc(100% + 10px);
-  left: 0;
+  position: fixed;
+  z-index: 60;
   width: 240px;
   max-height: min(60vh, 360px);
   overflow-y: auto;
@@ -2766,9 +2790,6 @@
 }
 .project-tile-body {
   padding: var(--s-base);
-  /* leave clearance so content never lands in the masked-out notch — the
-     cutout's flat ledge is --mh tall (not --nh, which is just the label box) */
-  padding-bottom: calc(var(--mh, 40px) + var(--s-xs));
   display: flex;
   flex-direction: column;
   gap: var(--s-xs);
@@ -2803,11 +2824,14 @@
   margin-top: auto;
   padding-top: var(--s-sm);
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--s-xs);
 }
 .project-tile-del {
-  color: var(--color-error);
+  align-self: flex-start;
+  margin-top: auto;
 }
 .project-tile-folder-select {
   margin-top: var(--s-xs);
