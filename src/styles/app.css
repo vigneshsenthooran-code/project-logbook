@@ -1349,14 +1349,46 @@
   text-transform: uppercase;
   color: var(--color-primary);
 }
+.card-notch-week {
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  max-width: 46px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
+/* Widened past the base 187x46 (still ~4:1 to match the chamfer angle) to fit
+   an optional term-week label ahead of the date when a Period is configured. */
 .entry-card {
-  --mw: 187px;
-  --mh: 46px;
+  --mw: 224px;
+  --mh: 55px;
   --nw: 92px;
   --nh: 36px;
   position: relative;
   cursor: pointer;
+}
+/* The wider notch shifts where the chamfer clears text — nudge the label's
+   safe area over to match, without touching the shared 100px used elsewhere
+   (e.g. ProjectTile, still on the base 187x46 box). Right-aligned so the date
+   sits flush against the card edge instead of leaving a gap after it. */
+.entry-card .card-notch-label {
+  padding-left: 112px;
+  padding-right: 10px;
+  justify-content: flex-end;
+}
+/* Smaller than ProjectTile's "N entries" notch (also on card-notch-title/year)
+   so the date reads as a quiet timestamp rather than a headline. */
+.entry-card .card-notch-title {
+  font-size: 13px;
+}
+.entry-card .card-notch-year {
+  font-size: 10px;
 }
 .entry-card-surface {
   display: flex;
@@ -1371,10 +1403,13 @@
    outline traces the full notched silhouette and isn't clipped (the mask on
    .entry-card-surface would otherwise cut off any outset border on the surface
    itself). Thickness is driven by --card-bw; keep the four offsets equal so the
-   line stays the same weight on every edge. */
+   line stays the same weight on every edge. Keep --card-bw a whole pixel —
+   fractional offsets rasterize unevenly across the four drop-shadow directions
+   (visibly thicker top/left than bottom/right); dial the weight down with
+   opacity on the color instead. */
 .entry-card-outline {
   --card-bw: 1px;
-  --card-border-c: var(--color-card-border);
+  --card-border-c: rgba(255, 255, 255, 0.65);
   transition: filter 160ms ease;
   filter:
     drop-shadow(var(--card-bw) 0 0 var(--card-border-c))

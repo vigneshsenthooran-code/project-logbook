@@ -5,6 +5,8 @@ import { categoryName } from '../lib/categories';
 import { isImageMime, isPdfMime, isTextMime } from '../lib/file';
 import { fetchLinkMeta } from '../lib/linkMeta';
 import { useFilePreview } from '../lib/useFilePreview';
+import { toDateKey } from '../lib/id';
+import { weekLabel, weekNumberForDate } from '../lib/period';
 
 function formatDayMonth(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
@@ -20,12 +22,16 @@ export default function EntryCard({
   onView: (e: Entry) => void;
 }) {
   const updateEntry = useStore((s) => s.updateEntry);
+  const period = useStore((s) => s.period);
   const { url: thumbUrl, mime: thumbMime, name: thumbName, text: thumbText, unsupported: thumbUnsupported } =
     useFilePreview(entry);
   const backfillingLink = useRef(false);
 
   const cat = categories.find((c) => c.id === entry.categoryId);
   const sub = entry.subHeadingId ? categories.find((c) => c.id === entry.subHeadingId) : undefined;
+
+  const entryWeekNum = period ? weekNumberForDate(period, toDateKey(new Date(entry.createdAt))) : null;
+  const entryWeekLabel = entryWeekNum ? weekLabel(period!, entryWeekNum) : null;
 
   // Older/seeded link entries were saved without a fetched thumbnail — backfill
   // it lazily on view so their cards get a real preview instead of the emoji placeholder.
@@ -119,6 +125,7 @@ export default function EntryCard({
       </div>
 
       <div className="card-notch-label">
+        {entryWeekLabel && <span className="card-notch-week">{entryWeekLabel}</span>}
         <span className="card-notch-title">{formatDayMonth(entry.createdAt)}</span>
         <span className="card-notch-year">{new Date(entry.createdAt).getFullYear()}</span>
       </div>
