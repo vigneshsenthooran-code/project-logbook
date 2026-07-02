@@ -1510,13 +1510,20 @@
 }
 
 /* ---- Entry detail modal ---- */
-.entry-detail-modal {
+/* Compound selectors here so these win over the later, equal-specificity
+   `.modal { max-width: 520px }` base rule in the cascade. */
+.modal.entry-detail-modal {
   position: relative;
   max-width: 640px;
 }
-.entry-detail-modal--split {
-  max-width: 1100px;
-  width: 95vw;
+.modal.entry-detail-modal--split {
+  max-width: 1560px;
+  width: 96vw;
+  overflow: hidden;
+}
+.modal.entry-detail-modal--hero {
+  max-width: 760px;
+  width: 92vw;
   overflow: hidden;
 }
 .entry-detail-layout {
@@ -1526,10 +1533,10 @@
 }
 .entry-detail-modal--split .entry-detail-layout {
   flex-direction: row;
-  max-height: 90vh;
+  height: 90vh;
 }
 .entry-detail-media-col {
-  flex: 1 1 60%;
+  flex: 1 1 65%;
   min-width: 0;
   background: var(--color-surface-strong);
   display: flex;
@@ -1538,10 +1545,31 @@
   overflow: hidden;
 }
 .entry-detail-modal--split .entry-detail-body {
-  flex: 0 0 400px;
-  max-width: 400px;
+  flex: 0 0 380px;
+  max-width: 380px;
   max-height: 90vh;
   overflow-y: auto;
+}
+.entry-detail-hero {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  width: 100%;
+  height: 320px;
+  background: var(--color-surface-strong);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  overflow: hidden;
+}
+.entry-detail-hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.entry-detail-actions--floating {
+  position: absolute;
+  top: var(--s-sm);
+  right: var(--s-sm);
 }
 .entry-detail-body-head {
   display: flex;
@@ -1596,12 +1624,9 @@
 }
 .entry-detail-media-frame {
   position: absolute;
-  top: 0;
-  left: 0;
-  /* Oversize so the embedded PDF viewer's scrollbars fall outside the
-     clipped container and stay hidden (wheel scrolling still works). */
-  width: calc(100% + 24px);
-  height: calc(100% + 24px);
+  inset: 0;
+  width: 100%;
+  height: 100%;
   border: none;
 }
 .entry-detail-media-text {
@@ -2476,6 +2501,44 @@
 .swatch.is-active {
   border-color: var(--color-ink);
 }
+.swatch-custom {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: pointer;
+  background: conic-gradient(
+    from 180deg,
+    var(--cat-1),
+    var(--cat-2),
+    var(--cat-3),
+    var(--cat-4),
+    var(--cat-5),
+    var(--cat-6),
+    var(--cat-7),
+    var(--cat-8),
+    var(--cat-1)
+  );
+}
+.swatch-custom-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.swatch-custom-icon {
+  position: relative;
+  font-size: 11px;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
 .catmgr-subs {
   border-top: 1px solid var(--color-hairline-soft);
   padding-top: var(--s-md);
@@ -2964,12 +3027,17 @@
     min-width: 44px;
     padding: 6px var(--s-sm) 7px;
   }
-  .entry-detail-modal--split {
+  .modal.entry-detail-modal--split {
+    width: 100%;
+    max-width: 640px;
+  }
+  .modal.entry-detail-modal--hero {
     width: 100%;
     max-width: 640px;
   }
   .entry-detail-modal--split .entry-detail-layout {
     flex-direction: column;
+    height: auto;
     max-height: none;
   }
   .entry-detail-media-col {

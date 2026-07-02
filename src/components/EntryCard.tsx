@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Category, Entry } from '../types';
 import { useStore } from '../store';
 import { categoryName } from '../lib/categories';
 import { isImageMime, isPdfMime, isTextMime } from '../lib/file';
 import { fetchLinkMeta } from '../lib/linkMeta';
+import { useFilePreview } from '../lib/useFilePreview';
 
 function formatDayMonth(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
@@ -18,12 +19,9 @@ export default function EntryCard({
   categories: Category[];
   onView: (e: Entry) => void;
 }) {
-  const getAttachment = useStore((s) => s.getAttachment);
   const updateEntry = useStore((s) => s.updateEntry);
-  const [thumbUrl, setThumbUrl] = useState<string | null>(null);
-  const [thumbMime, setThumbMime] = useState<string | null>(null);
-  const [thumbName, setThumbName] = useState<string | null>(null);
-  const [thumbText, setThumbText] = useState<string | null>(null);
+  const { url: thumbUrl, mime: thumbMime, name: thumbName, text: thumbText, unsupported: thumbUnsupported } =
+    useFilePreview(entry);
   const backfillingLink = useRef(false);
 
   const cat = categories.find((c) => c.id === entry.categoryId);
@@ -42,33 +40,19 @@ export default function EntryCard({
     });
   }, [entry, updateEntry]);
 
-  useEffect(() => {
-    let url: string | null = null;
-    let alive = true;
-    if ((entry.type === 'image' || entry.type === 'file') && entry.attachmentIds.length > 0) {
-      void getAttachment(entry.attachmentIds[0]).then((att) => {
-        if (att && alive) {
-          url = URL.createObjectURL(att.blob);
-          setThumbUrl(url);
-          setThumbMime(att.mime);
-          setThumbName(att.name);
-          if (isTextMime(att.mime)) void att.blob.text().then((text) => alive && setThumbText(text));
-        }
-      });
-    }
-    return () => {
-      alive = false;
-      if (url) URL.revokeObjectURL(url);
-    };
-  }, [entry, getAttachment]);
-
   return (
     <article className="entry-card" onClick={() => onView(entry)}>
       <div className="entry-card-outline">
       <div className="entry-card-surface card-cutout">
       {entry.type === 'image' && (
         <div className="entry-media">
-          {thumbUrl ? <img src={thumbUrl} alt={entry.body || 'image'} /> : <div className="entry-media-ph" />}
+          {thumbUnsupported ? (
+            <div className="entry-media-ph">🖼️</div>
+          ) : thumbUrl ? (
+            <img src={thumbUrl} alt={entry.body || 'image'} />
+          ) : (
+            <div className="entry-media-ph" />
+          )}
         </div>
       )}
 
@@ -84,7 +68,7 @@ export default function EntryCard({
 
       {entry.type === 'file' && (
         <div className="entry-media">
-          {thumbUrl && thumbMime && isImageMime(thumbMime) ? (
+          {thumbUrl && thumbMime && isImageMime(thumbMime) && !thumbUnsupported ? (
             <img src={thumbUrl} alt={thumbName ?? entry.body ?? 'file'} />
           ) : thumbMime && isTextMime(thumbMime) && thumbText !== null ? (
             <pre className="entry-media-text">{thumbText}</pre>

@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
 import type { Category, Entry } from '../types';
-import { useStore } from '../store';
 import { categoryName } from '../lib/categories';
 import { isImageMime, isPdfMime, isTextMime } from '../lib/file';
+import { useFilePreview } from '../lib/useFilePreview';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -23,65 +22,65 @@ export default function EntryDetailModal({
   onClose: () => void;
   onEdit: (e: Entry) => void;
 }) {
-  const getAttachment = useStore((s) => s.getAttachment);
-  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [fileMime, setFileMime] = useState<string | null>(null);
-  const [fileText, setFileText] = useState<string | null>(null);
+  const preview = useFilePreview(entry);
+  const { url: mediaUrl, name: fileName, mime: fileMime, text: fileText, converting, unsupported } = preview;
 
   const cat = categories.find((c) => c.id === entry.categoryId);
   const sub = entry.subHeadingId ? categories.find((c) => c.id === entry.subHeadingId) : undefined;
   const relatesTo = entry.relatesTo ? categories.find((c) => c.id === entry.relatesTo) : undefined;
 
-  const hasMedia =
+  const hasSplitMedia =
     entry.type === 'image' ||
-    (entry.type === 'link' && !!entry.link?.thumbnailUrl) ||
-    (entry.type === 'file' && !!mediaUrl && !!fileMime && isImageMime(fileMime)) ||
+    (entry.type === 'file' && !unsupported && !!mediaUrl && !!fileMime && isImageMime(fileMime)) ||
     (entry.type === 'file' && !!fileMime && isTextMime(fileMime) && fileText !== null) ||
     (entry.type === 'file' && !!mediaUrl && !!fileMime && isPdfMime(fileMime));
+  const isLinkHero = entry.type === 'link' && !!entry.link?.thumbnailUrl;
 
-  useEffect(() => {
-    let url: string | null = null;
-    let alive = true;
-    if ((entry.type === 'image' || entry.type === 'file') && entry.attachmentIds.length > 0) {
-      void getAttachment(entry.attachmentIds[0]).then((att) => {
-        if (att && alive) {
-          url = URL.createObjectURL(att.blob);
-          setMediaUrl(url);
-          setFileName(att.name);
-          setFileMime(att.mime);
-          if (isTextMime(att.mime)) void att.blob.text().then((text) => alive && setFileText(text));
-        }
-      });
-    }
-    return () => {
-      alive = false;
-      if (url) URL.revokeObjectURL(url);
-    };
-  }, [entry, getAttachment]);
+  const modalClass = hasSplitMedia
+    ? 'entry-detail-modal--split'
+    : isLinkHero
+      ? 'entry-detail-modal--hero'
+      : '';
+
+  const actions = (
+    <div className="entry-detail-actions">
+      <button className="icon-btn" aria-label="Edit entry" onClick={() => onEdit(entry)}>
+        ✎
+      </button>
+      <button className="icon-btn" aria-label="Close" onClick={onClose}>
+        ✕
+      </button>
+    </div>
+  );
 
   return (
     <div className="scrim" onClick={onClose}>
-      <div
-        className={`modal entry-detail-modal${hasMedia ? ' entry-detail-modal--split' : ''}`}
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className={`modal entry-detail-modal ${modalClass}`} onClick={(e) => e.stopPropagation()}>
+        {isLinkHero && entry.link && (
+          <div className="entry-detail-hero">
+            <img src={entry.link.thumbnailUrl} alt="" />
+            <div className="entry-detail-actions--floating">{actions}</div>
+          </div>
+        )}
+
         <div className="entry-detail-layout">
-          {hasMedia && (
+          {hasSplitMedia && (
             <div className="entry-detail-media-col">
               {entry.type === 'image' && (
                 <div className="entry-detail-media">
-                  {mediaUrl ? <img src={mediaUrl} alt={entry.body || 'image'} /> : <div className="entry-media-ph" />}
+                  {converting ? (
+                    <div className="entry-media-ph">Converting preview…</div>
+                  ) : unsupported ? (
+                    <div className="entry-media-ph">🖼️ Preview not available</div>
+                  ) : mediaUrl ? (
+                    <img src={mediaUrl} alt={entry.body || 'image'} />
+                  ) : (
+                    <div className="entry-media-ph" />
+                  )}
                 </div>
               )}
 
-              {entry.type === 'link' && entry.link && entry.link.thumbnailUrl && (
-                <div className="entry-detail-media">
-                  <img src={entry.link.thumbnailUrl} alt="" />
-                </div>
-              )}
-
-              {entry.type === 'file' && mediaUrl && fileMime && isImageMime(fileMime) && (
+              {entry.type === 'file' && !unsupported && mediaUrl && fileMime && isImageMime(fileMime) && (
                 <div className="entry-detail-media">
                   <img src={mediaUrl} alt={fileName ?? entry.body ?? 'file'} />
                 </div>
@@ -95,14 +94,27 @@ export default function EntryDetailModal({
 
               {entry.type === 'file' && mediaUrl && fileMime && isPdfMime(fileMime) && (
                 <div className="entry-detail-media entry-detail-media-file">
-                  <iframe className="entry-detail-media-frame" src={`${mediaUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`} title={fileName ?? entry.body ?? 'file preview'} />
+                  <iframe className="entry-detail-media-frame" src={mediaUrl} title={fileName ?? entry.body ?? 'file preview'} />
                 </div>
               )}
             </div>
           )}
 
           <div className="entry-detail-body">
-            <div className="entry-detail-body-head">
+            {!isLinkHero && (
+              <div className="entry-detail-body-head">
+                <div className="entry-card-tags">
+                  <span className="tag">
+                    <span className="tag-dot" style={{ background: cat?.color }} />
+                    {categoryName(categories, entry.categoryId)}
+                  </span>
+                  {sub && <span className="tag entry-subtag">{sub.name}</span>}
+                </div>
+                {actions}
+              </div>
+            )}
+
+            {isLinkHero && (
               <div className="entry-card-tags">
                 <span className="tag">
                   <span className="tag-dot" style={{ background: cat?.color }} />
@@ -110,21 +122,16 @@ export default function EntryDetailModal({
                 </span>
                 {sub && <span className="tag entry-subtag">{sub.name}</span>}
               </div>
-              <div className="entry-detail-actions">
-                <button className="icon-btn" aria-label="Edit entry" onClick={() => onEdit(entry)}>
-                  ✎
-                </button>
-                <button className="icon-btn" aria-label="Close" onClick={onClose}>
-                  ✕
-                </button>
-              </div>
-            </div>
+            )}
 
             {entry.type === 'text' && <p className="entry-detail-text">{entry.body}</p>}
 
             {entry.type === 'file' && (
               <div className="entry-detail-file">
                 <p className="entry-detail-text">📄 {fileName ?? entry.body ?? 'Attached file'}</p>
+                {unsupported && (
+                  <p className="t-body-sm muted">Preview not available for this file type — download to view.</p>
+                )}
                 {mediaUrl && (
                   <a className="btn btn-secondary btn-pill" href={mediaUrl} download={fileName ?? undefined}>
                     Download
@@ -138,6 +145,17 @@ export default function EntryDetailModal({
               <a className="entry-link-title" href={entry.link.url} target="_blank" rel="noreferrer">
                 {entry.link.title ?? entry.link.url}
               </a>
+            )}
+
+            {entry.type === 'image' && unsupported && (
+              <div className="entry-detail-file">
+                <p className="t-body-sm muted">Preview not available for this image type — download to view.</p>
+                {mediaUrl && (
+                  <a className="btn btn-secondary btn-pill" href={mediaUrl} download={fileName ?? undefined}>
+                    Download
+                  </a>
+                )}
+              </div>
             )}
 
             {(entry.type === 'image' || entry.type === 'link') && entry.body && (

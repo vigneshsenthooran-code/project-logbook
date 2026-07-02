@@ -15,6 +15,15 @@ const SWATCHES = [
   'var(--cat-8)',
 ];
 
+// Custom-picker swatches store a resolved hex, not a `var(...)` reference, so
+// an <input type="color"> can use it directly as its value.
+function resolveHex(color: string): string {
+  if (!color.startsWith('var(')) return color;
+  const name = color.slice(4, -1).trim();
+  const resolved = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return resolved || '#ffffff';
+}
+
 /**
  * Presentational categories-and-keywords editor — owns no state of its own, so
  * it can drive either a live project's config (CategoryManager) or a custom
@@ -96,6 +105,26 @@ export default function CategoryListEditor({
                   aria-label="Set colour"
                 />
               ))}
+              {(() => {
+                const isCustom = !SWATCHES.includes(cat.color);
+                return (
+                  <label
+                    className={`swatch swatch-custom ${isCustom ? 'is-active' : ''}`}
+                    style={isCustom ? { background: cat.color } : undefined}
+                  >
+                    <input
+                      type="color"
+                      className="swatch-custom-input"
+                      value={resolveHex(cat.color)}
+                      onChange={(e) => update(cat.id, { color: e.target.value })}
+                      aria-label="Custom colour"
+                    />
+                    <span className="swatch-custom-icon" aria-hidden="true">
+                      ✎
+                    </span>
+                  </label>
+                );
+              })()}
             </div>
             <input
               className="input catmgr-name"
