@@ -3,6 +3,7 @@ import Topbar from './Topbar';
 import ContourBackground from './ContourBackground';
 import EntryComposer from './EntryComposer';
 import Footer from './Footer';
+import IntroWalkthrough from './IntroWalkthrough';
 
 export default function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -16,6 +17,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </main>
       </div>
       <EntryComposer />
+      <IntroWalkthrough />
     </div>
   );
 }

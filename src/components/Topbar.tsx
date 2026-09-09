@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-
 import { useStore } from '../store';
 import DecorMark from './DecorMark';
 import TopbarSearchResults from './TopbarSearchResults';
+import { openIntroWalkthrough } from './IntroWalkthrough';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', end: true },
@@ -111,6 +112,12 @@ export default function Topbar() {
     }
   }
 
+  function handleOpenIntro() {
+    openIntroWalkthrough();
+    setMenuOpen(false);
+    setMobileMenuOpen(false);
+  }
+
   async function handleClearDemo() {
     if (clearing) return;
     if (!window.confirm('Remove all demo projects and their entries?')) return;
@@ -198,6 +205,13 @@ export default function Topbar() {
               <button
                 type="button"
                 className="btn btn-secondary btn-sm topbar-seed-btn"
+                onClick={handleOpenIntro}
+              >
+                How it works
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm topbar-seed-btn"
                 onClick={handleSeedDemo}
                 disabled={seeding}
                 title="Add 3 demo projects with sample entries"
@@ -271,6 +285,9 @@ export default function Topbar() {
             <div className="topbar-mobile-menu-divider" />
 
             <div className="topbar-mobile-demo-tools">
+              <button type="button" className="btn btn-secondary btn-sm topbar-seed-btn" onClick={handleOpenIntro}>
+                How it works
+              </button>
               <button
                 type="button"
                 className="btn btn-secondary btn-sm topbar-seed-btn"

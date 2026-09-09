@@ -5,6 +5,7 @@ import App from './App';
 import { applyTheme } from './lib/theme';
 import './styles/tokens.css';
 import './styles/app.css';
+import './styles/intro-walkthrough.css';
 
 applyTheme();
 
