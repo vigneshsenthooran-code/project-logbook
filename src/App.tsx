@@ -7,17 +7,18 @@ import Projects from './views/Projects';
 import ProjectDetail from './views/ProjectDetail';
 import SearchResults from './views/SearchResults';
 import Settings from './views/Settings';
-import AuthScreen from './views/AuthScreen';
 import LoadingScreen from './components/LoadingScreen';
-import { getStorageMode } from './storage/mode';
+import { getStorageMode, setStorageMode } from './storage/mode';
 import { supabase } from './lib/supabaseClient';
 import { supabaseAdapter } from './storage/supabaseAdapter';
 
+// Sign-in is disabled for now — everyone lands in local guest mode. Existing
+// devices already signed into a cloud account keep working if their session
+// is still valid; otherwise they're quietly dropped back to local.
 export default function App() {
   const ready = useStore((s) => s.ready);
   const init = useStore((s) => s.init);
   const [authChecked, setAuthChecked] = useState(false);
-  const [needsAuth, setNeedsAuth] = useState(false);
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
 
   useEffect(() => {
@@ -33,33 +34,18 @@ export default function App() {
         if (data.session) {
           setActiveStorage(supabaseAdapter);
         } else {
-          setNeedsAuth(true);
-          setAuthChecked(true);
-          return;
+          setStorageMode('local');
         }
       } else if (mode === undefined) {
-        setNeedsAuth(true);
-        setAuthChecked(true);
-        return;
+        setStorageMode('local');
       }
       setAuthChecked(true);
       void init();
     })();
   }, [init]);
 
-  if (!minTimeElapsed || !authChecked || (!needsAuth && !ready)) {
+  if (!minTimeElapsed || !authChecked || !ready) {
     return <LoadingScreen />;
-  }
-
-  if (needsAuth) {
-    return (
-      <AuthScreen
-        onDone={() => {
-          setNeedsAuth(false);
-          void init();
-        }}
-      />
-    );
   }
 
   return (
